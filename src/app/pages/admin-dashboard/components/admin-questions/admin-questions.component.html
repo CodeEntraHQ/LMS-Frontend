@@ -1,0 +1,303 @@
+<div class="dashboard-section">
+  <div class="section-header">
+    <div>
+      <h2 class="section-title">📚 Questions (Admin View)</h2>
+      <p class="section-subtitle">Question bank control, policy, monitoring & approval</p>
+    </div>
+  </div>
+
+  <div class="sub-tabs" style="margin: 24px 0;">
+    <button class="sub-tab" [class.active]="subTab === 'bank'" (click)="onSubTabChange('bank')">Question Bank</button>
+    <button class="sub-tab" [class.active]="subTab === 'policy'" (click)="onSubTabChange('policy')">Question Policy</button>
+    <button class="sub-tab" [class.active]="subTab === 'monitoring'" (click)="onSubTabChange('monitoring')">Monitoring</button>
+    <button class="sub-tab" [class.active]="subTab === 'control'" (click)="onSubTabChange('control')">Control</button>
+  </div>
+
+  <!-- Question Bank Tab -->
+  <div *ngIf="subTab === 'bank'">
+    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+      <button class="btn-primary" (click)="openCreateQuestionModal()">+ Create Question</button>
+      <button class="btn-secondary" (click)="showFilters = !showFilters">{{ showFilters ? 'Hide' : 'Filter' }}</button>
+    </div>
+    <div *ngIf="showFilters" class="form-row" style="margin: 16px 0;">
+      <div class="form-group">
+        <label>Course</label>
+        <select class="form-input" [(ngModel)]="filters.courseId" (change)="onCourseChange()">
+          <option value="">All</option>
+          <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <select class="form-input" [(ngModel)]="filters.classId" (change)="onClassChange()">
+          <option value="">All</option>
+          <option *ngFor="let c of filterClasses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Subject</label>
+        <select class="form-input" [(ngModel)]="filters.subjectId">
+          <option value="">All</option>
+          <option *ngFor="let s of filterSubjects" [value]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input" [(ngModel)]="filters.status">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Teacher</label>
+        <select class="form-input" [(ngModel)]="filters.teacherId">
+          <option value="">All</option>
+          <option *ngFor="let t of teachers" [value]="t.id">{{ t.firstName }} {{ t.lastName }}</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" (click)="loadQuestions()">Apply</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoading" class="loading">Loading questions...</div>
+    <div *ngIf="!isLoading && questions.length === 0" class="empty-state"><p>No questions in bank. Teachers add questions from their dashboard.</p></div>
+    <div *ngIf="!isLoading && questions.length > 0" class="q-table">
+      <div class="q-table-header">
+        <span>Question</span>
+        <span>Subject</span>
+        <span>Type</span>
+        <span>Marks</span>
+        <span>Difficulty</span>
+        <span>Created By</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="q-table-row" *ngFor="let q of questions">
+        <span class="q-text">{{ (q.questionText || '').substring(0, 80) }}{{ (q.questionText || '').length > 80 ? '...' : '' }}</span>
+        <span>{{ q.subjectName || getSubjectName(q.subjectId) }}</span>
+        <span>{{ q.questionType }}</span>
+        <span>{{ q.marks }}</span>
+        <span>{{ q.difficulty || 'medium' }}</span>
+        <span>{{ getTeacherName(q.createdByTeacherId) || 'Admin' }}</span>
+        <span><span class="status-badge" [class.status-active]="q.status === 'approved'" [class.status-draft]="q.status === 'pending'">{{ q.status }}</span></span>
+        <span class="q-actions">
+          <button class="btn-view" (click)="viewQuestion(q)">View</button>
+          <button class="btn-edit" *ngIf="q.status === 'pending'" (click)="approveQuestion(q)">Approve</button>
+          <button class="btn-secondary" *ngIf="q.status === 'pending'" (click)="rejectQuestion(q)">Reject</button>
+          <button class="btn-secondary" (click)="deleteQuestion(q)">Delete</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Policy Tab -->
+  <div *ngIf="subTab === 'policy'" class="settings-card">
+    <h3>Question Policy Rules</h3>
+    <p class="section-subtitle" style="margin-bottom: 20px;">Define allowed question types, max marks, negative marking & approval workflow</p>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Allow MCQ (Single)</label>
+        <select class="form-input" [(ngModel)]="policyForm.allowMcq">
+          <option [ngValue]="true">Yes</option>
+          <option [ngValue]="false">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Allow MCQ (Multiple correct)</label>
+        <select class="form-input" [(ngModel)]="policyForm.allowMcqMultiple">
+          <option [ngValue]="true">Yes</option>
+          <option [ngValue]="false">No</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Allow Descriptive</label>
+        <select class="form-input" [(ngModel)]="policyForm.allowDescriptive">
+          <option [ngValue]="true">Yes</option>
+          <option [ngValue]="false">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Allow One Word</label>
+        <select class="form-input" [(ngModel)]="policyForm.allowOneWord">
+          <option [ngValue]="true">Yes</option>
+          <option [ngValue]="false">No</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Allow File Upload</label>
+        <select class="form-input" [(ngModel)]="policyForm.allowFileUpload">
+          <option [ngValue]="false">No</option>
+          <option [ngValue]="true">Yes</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Max Marks per Question</label>
+        <input type="number" class="form-input" [(ngModel)]="policyForm.maxMarksPerQuestion" min="1" />
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Negative Marking Allowed</label>
+        <select class="form-input" [(ngModel)]="policyForm.negativeMarkingAllowed">
+          <option [ngValue]="true">Yes</option>
+          <option [ngValue]="false">No</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Randomization Allowed</label>
+        <select class="form-input" [(ngModel)]="policyForm.randomizationAllowed">
+          <option [ngValue]="true">Yes</option>
+          <option [ngValue]="false">No</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Teacher Question Approval</label>
+        <select class="form-input" [(ngModel)]="policyForm.requireApproval">
+          <option [ngValue]="false">All approved – teacher questions auto-approved</option>
+          <option [ngValue]="true">Require approval – admin must approve each</option>
+        </select>
+        <small class="form-hint">Admin-created questions are always approved.</small>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" (click)="savePolicy()" [disabled]="isSavingPolicy">{{ isSavingPolicy ? 'Saving...' : 'Save Policy' }}</button>
+    </div>
+  </div>
+
+  <!-- Monitoring Tab -->
+  <div *ngIf="subTab === 'monitoring'" class="settings-card">
+    <h3>Monitoring</h3>
+    <p class="section-subtitle" style="margin-bottom: 20px;">Question bank stats: total, approved, pending, by teacher & subject</p>
+    <div *ngIf="monitoringStats" class="monitoring-grid">
+      <div class="monitoring-item"><span class="mon-label">Total Questions</span><span class="mon-value">{{ monitoringStats.total || 0 }}</span></div>
+      <div class="monitoring-item"><span class="mon-label">Approved</span><span class="mon-value status-active">{{ monitoringStats.approved || 0 }}</span></div>
+      <div class="monitoring-item"><span class="mon-label">Pending</span><span class="mon-value status-draft">{{ monitoringStats.pending || 0 }}</span></div>
+      <div class="monitoring-item"><span class="mon-label">Rejected</span><span class="mon-value">{{ monitoringStats.rejected || 0 }}</span></div>
+    </div>
+    <div *ngIf="!monitoringStats" class="empty-state"><p>Loading monitoring data...</p></div>
+  </div>
+
+  <!-- Control Tab -->
+  <div *ngIf="subTab === 'control'" class="settings-card">
+    <h3>Control & Approval</h3>
+    <p class="section-subtitle">Approve/Reject pending questions, delete inappropriate ones. Use the Question Bank tab above to perform actions.</p>
+  </div>
+</div>
+
+<!-- Create Question Modal -->
+<div class="modal-overlay" *ngIf="showCreateQuestionModal" (click)="closeCreateQuestionModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header">
+      <h2>Create Question</h2>
+      <button class="close-btn" (click)="closeCreateQuestionModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="form-hint" style="margin-bottom: 16px;">This question will be for which subject and class? (All sections of that class will have access.)</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Course *</label>
+          <select class="form-input" [(ngModel)]="createQuestionForm.courseId" (change)="onCreateCourseChange()">
+            <option [value]="0">Select</option>
+            <option *ngFor="let c of courses" [ngValue]="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Class *</label>
+          <select class="form-input" [(ngModel)]="createQuestionForm.classId" (change)="onCreateClassChange()">
+            <option [value]="0">Select</option>
+            <option *ngFor="let c of createFilterClasses" [ngValue]="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Subject *</label>
+          <select class="form-input" [(ngModel)]="createQuestionForm.subjectId">
+            <option [value]="0">Select</option>
+            <option *ngFor="let s of createFilterSubjects" [ngValue]="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Question Type *</label>
+          <select class="form-input" [(ngModel)]="createQuestionForm.questionType">
+            <option value="MCQ_SINGLE">MCQ Single</option>
+            <option value="MCQ_MULTIPLE">MCQ Multiple</option>
+            <option value="DESCRIPTIVE">Descriptive</option>
+            <option value="ONE_WORD">One Word</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Marks</label>
+          <input type="number" class="form-input" [(ngModel)]="createQuestionForm.marks" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Difficulty</label>
+          <select class="form-input" [(ngModel)]="createQuestionForm.difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Question Text *</label>
+        <textarea class="form-input" rows="4" [(ngModel)]="createQuestionForm.questionText" placeholder="Enter question text"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Chapter / Unit</label>
+        <input type="text" class="form-input" [(ngModel)]="createQuestionForm.chapterUnit" placeholder="e.g. Chapter 1" />
+      </div>
+      <div *ngIf="['MCQ_SINGLE','MCQ_MULTIPLE'].includes(createQuestionForm.questionType)" class="form-group">
+        <label>Options (mark correct)</label>
+        <div *ngFor="let opt of createQuestionOptions; let i = index" class="form-row" style="align-items: center; margin-bottom: 8px;">
+          <input type="text" class="form-input" [(ngModel)]="opt.optionText" placeholder="Option {{ i+1 }}" style="flex: 1;" />
+          <label style="display: flex; align-items: center; gap: 6px;"><input type="checkbox" [(ngModel)]="opt.isCorrect" /> Correct</label>
+          <button class="btn-secondary" (click)="removeCreateOption(i)" *ngIf="createQuestionOptions.length > 2">Remove</button>
+        </div>
+        <button class="btn-secondary" (click)="addCreateOption()" style="margin-top: 8px;">+ Add Option</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeCreateQuestionModal()">Cancel</button>
+      <button class="btn-primary" (click)="createQuestion()">Create (Auto-approved)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Question View Modal -->
+<div class="modal-overlay" *ngIf="showQuestionModal" (click)="closeQuestionModal()">
+  <div class="modal-content" (click)="$event.stopPropagation()" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2>Question Details</h2>
+      <button class="close-btn" (click)="closeQuestionModal()">&times;</button>
+    </div>
+    <div class="modal-body" *ngIf="selectedQuestion">
+      <div class="q-detail"><strong>Question:</strong> {{ selectedQuestion.questionText }}</div>
+      <div class="q-detail"><strong>Type:</strong> {{ selectedQuestion.questionType }}</div>
+      <div class="q-detail"><strong>Marks:</strong> {{ selectedQuestion.marks }}</div>
+      <div class="q-detail"><strong>Difficulty:</strong> {{ selectedQuestion.difficulty || 'medium' }}</div>
+      <div class="q-detail"><strong>Chapter/Unit:</strong> {{ selectedQuestion.chapterUnit || 'N/A' }}</div>
+      <div class="q-detail" *ngIf="selectedQuestion.options?.length">
+        <strong>Options:</strong>
+        <ul>
+          <li *ngFor="let o of selectedQuestion.options">{{ o.optionText }} <span *ngIf="o.isCorrect" class="correct-badge">✓ Correct</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeQuestionModal()">Close</button>
+      <button class="btn-edit" *ngIf="selectedQuestion?.status === 'pending'" (click)="approveQuestion(selectedQuestion)">Approve</button>
+      <button class="btn-secondary" *ngIf="selectedQuestion?.status === 'pending'" (click)="rejectQuestion(selectedQuestion)">Reject</button>
+      <button class="btn-secondary" (click)="deleteQuestion(selectedQuestion)">Delete</button>
+    </div>
+  </div>
+</div>

@@ -2,6 +2,7 @@ import { Component, OnInit, HostListener, ViewChild, ElementRef, ChangeDetectorR
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
+import { forkJoin, of } from 'rxjs';
 import { ThemeService } from '../../services/theme.service';
 import { AuthService } from '../../services/auth.service';
 import { ProfileService } from '../../services/profile.service';
@@ -11,2295 +12,27 @@ import { StudentService, Student } from '../../services/student.service';
 import { TeacherService, Teacher } from '../../services/teacher.service';
 import { FooterComponent } from '../../components/footer/footer.component';
 import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMapping } from '../../services/subject.service';
+import { AssignmentService, AssignmentOverview, AssignmentSummary } from '../../services/assignment.service';
+import { AttendanceService, AttendanceOverview, AttendanceStudentReport, AttendanceTeacherActivity, AttendancePolicy, AttendanceCorrection, AttendanceAuditLog } from '../../services/attendance.service';
+import { SubjectContentService, SubjectContent, SubjectContentType } from '../../services/subject-content.service';
+import { NoticeService, Notice, NoticeOverview } from '../../services/notice.service';
+import { AnnouncementService, Announcement } from '../../services/announcement.service';
+import { FeeService, FeeStructure, FeeAssignment, FeePayment, FeePolicy, Receipt, FinancialDashboard } from '../../services/fee.service';
+import { SectionModalComponent } from '../../components/section-modal/section-modal.component';
+import { FeeStructureModalComponent } from '../../components/fee-structure-modal/fee-structure-modal.component';
+import { FeeAssignmentModalComponent } from '../../components/fee-assignment-modal/fee-assignment-modal.component';
+import { AdminFeesComponent } from './components/admin-fees/admin-fees.component';
+import { AdminExamsComponent } from './components/admin-exams/admin-exams.component';
+import { AdminQuestionsComponent } from './components/admin-questions/admin-questions.component';
+import { AdminReportsComponent } from './components/admin-reports/admin-reports.component';
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, FooterComponent],
-  template: `
-    <div class="page" [style.--entity-primary-color]="(entity && entity.primaryColor) || '#10b981'">
-      <!-- Top Nav -->
-      <header class="nav">
-        <div class="nav-left">
-          <a class="brand" routerLink="/admin/dashboard">
-            <svg class="brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span class="brand-text">LMS</span>
-          </a>
-        </div>
-        <div class="nav-center">
-          <div class="breadcrumb">
-            <a *ngIf="userRole === 'SUPERADMIN'" routerLink="/superadmin/dashboard" class="breadcrumb-link">Dashboard</a>
-            <span *ngIf="userRole === 'SUPERADMIN'" class="breadcrumb-separator">></span>
-            <span *ngIf="userRole === 'SUPERADMIN' && entity" class="breadcrumb-link">{{ entity.name }}</span>
-            <span *ngIf="userRole !== 'SUPERADMIN'" class="breadcrumb-current">Dashboard</span>
-          </div>
-        </div>
-        <div class="nav-right">
-          <button class="icon-btn" (click)="toggleTheme()" aria-label="Toggle theme">
-            <svg *ngIf="isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 2V4M12 20V22M4.93 4.93L6.34 6.34M17.66 17.66L19.07 19.07M2 12H4M20 12H22M4.93 19.07L6.34 17.66M17.66 6.34L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <svg *ngIf="!isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-
-          <button class="user-trigger" type="button" (click)="toggleUserMenu($event)" aria-label="Open user menu">
-            <div class="avatar" [style.background-image]="profileImage ? 'url(' + profileImage + ')' : 'none'">
-              <span *ngIf="!profileImage">{{ userInitial }}</span>
-            </div>
-            <div class="user-block">
-              <div class="user-name">{{ userName }}</div>
-              <div class="user-badge">{{ userRole === 'SUPERADMIN' ? 'SUPERADMIN' : 'ADMIN' }}</div>
-            </div>
-          </button>
-
-          <div class="user-menu" *ngIf="isUserMenuOpen">
-            <div class="user-menu-head">
-              <div class="menu-avatar" [style.background-image]="profileImage ? 'url(' + profileImage + ')' : 'none'">
-                <span *ngIf="!profileImage">{{ userInitial }}</span>
-              </div>
-              <div class="menu-meta">
-                <div class="menu-name">{{ userName }}</div>
-                <div class="menu-email">{{ userEmail }}</div>
-              </div>
-            </div>
-            <div class="menu-divider"></div>
-            <button class="menu-item" (click)="goProfile()">
-              <span class="mi-ico">👤</span>
-              <span>Profile</span>
-            </button>
-            <button class="menu-item" (click)="logout()">
-              <span class="mi-ico">↩</span>
-              <span>Logout</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main class="content">
-        <!-- Loading State -->
-        <div *ngIf="isLoading && !entity" class="loading-container">
-          <div class="loading-spinner"></div>
-          <p>Loading entity...</p>
-        </div>
-
-        <!-- Error State -->
-        <div *ngIf="!isLoading && !entity && userRole !== 'SUPERADMIN'" class="error-container">
-          <p>⚠️ Entity not loaded. Please check your account or contact support.</p>
-          <button class="btn-primary" (click)="loadFirstEntity()">Retry</button>
-        </div>
-
-        <!-- Entity Header -->
-        <div class="entity-header-card" *ngIf="entity">
-          <div class="entity-header-left">
-            <div class="entity-header-icon">
-              <img *ngIf="entity.logoUrl" [src]="entity.logoUrl" alt="Logo" class="entity-logo-img" />
-              <span *ngIf="!entity.logoUrl">🏢</span>
-            </div>
-            <div class="entity-header-info">
-              <div class="entity-header-title">
-                <h1>{{ entity.name || 'Loading...' }}</h1>
-                <span class="status-badge active" *ngIf="entity.status === 'active'">{{ entity.status }}</span>
-              </div>
-              <div class="entity-header-meta">
-                <span class="type-badge">{{ entity.type }}</span>
-                <span class="meta-separator">•</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 10C21 17 12 23 12 23C12 23 3 17 3 10C3 7.61305 3.94821 5.32387 5.63604 3.63604C7.32387 1.94821 9.61305 1 12 1C14.3869 1 16.6761 1.94821 18.364 3.63604C20.0518 5.32387 21 7.61305 21 10Z" stroke="currentColor" stroke-width="2"/>
-                  <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <span>{{ entity.address || 'N/A' }}</span>
-                <span class="meta-separator">•</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
-                  <path d="M16 2V6M8 2V6M3 10H21" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <span>Created {{ formatDate(entity.createdAt) || 'N/A' }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Navigation Tabs -->
-        <div class="nav-tabs">
-          <button class="nav-tab" [class.active]="activeTab === 'admissions'" (click)="activeTab = 'admissions'">
-            <span class="tab-emoji">🎓</span>
-            <span>Admissions</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'students'" (click)="activeTab = 'students'">
-            <span class="tab-emoji">👨‍🎓</span>
-            <span>Students</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'teachers'" (click)="activeTab = 'teachers'">
-            <span class="tab-emoji">👩‍🏫</span>
-            <span>Teachers</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'reports'" (click)="activeTab = 'reports'">
-            <span class="tab-emoji">📊</span>
-            <span>Reports</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'fees'" (click)="activeTab = 'fees'">
-            <span class="tab-emoji">💰</span>
-            <span>Fees</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'dashboard'" (click)="activeTab = 'dashboard'">
-            <span class="tab-emoji">📊</span>
-            <span>My Dashboard</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'subjects'" (click)="activeTab = 'subjects'" *ngIf="isFeatureEnabled('My Subjects') || isFeatureEnabled('subjects')">
-            <span class="tab-emoji">📚</span>
-            <span>My Subjects</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'assignments'" (click)="activeTab = 'assignments'">
-            <span class="tab-emoji">📝</span>
-            <span>Assignments</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'exam-attempts'" (click)="activeTab = 'exam-attempts'">
-            <span class="tab-emoji">🧪</span>
-            <span>Exams</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'attendance'" (click)="activeTab = 'attendance'">
-            <span class="tab-emoji">📅</span>
-            <span>Attendance</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'notices'" (click)="activeTab = 'notices'">
-            <span class="tab-emoji">📢</span>
-            <span>Notices</span>
-          </button>
-          <button class="nav-tab" [class.active]="activeTab === 'settings'" (click)="activeTab = 'settings'">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 1V3M12 21V23M4.22 4.22L5.64 5.64M18.36 18.36L19.78 19.78M1 12H3M21 12H23M4.22 19.78L5.64 18.36M18.36 5.64L19.78 4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <span>Settings</span>
-          </button>
-        </div>
-
-        <!-- My Dashboard Tab -->
-        <div class="dashboard-section" *ngIf="activeTab === 'dashboard' && entity">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">My Dashboard</h2>
-              <p class="section-subtitle">Overview of your enrolled courses, exams, and assignments</p>
-            </div>
-          </div>
-          <div class="dashboard-content">
-            <div class="dashboard-card">
-              <h3 class="card-title">Enrolled course / class</h3>
-              <p class="card-text">No enrolled courses yet</p>
-            </div>
-            <div class="dashboard-card">
-              <h3 class="card-title">Upcoming exams</h3>
-              <p class="card-text">No upcoming exams</p>
-            </div>
-            <div class="dashboard-card">
-              <h3 class="card-title">Pending assignments</h3>
-              <p class="card-text">No pending assignments</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Admissions Tab -->
-        <div class="dashboard-section" *ngIf="activeTab === 'admissions'">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Admissions</h2>
-              <p class="section-subtitle">Manage student and teacher admissions, review applications, and approve enrollments</p>
-            </div>
-          </div>
-
-          <!-- Main Tabs: Student Admission & Teacher Admission -->
-          <div class="admission-main-tabs">
-            <button class="admission-main-tab" [class.active]="admissionMainTab === 'student'" (click)="switchAdmissionMainTab('student')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Student Admission
-            </button>
-            <button class="admission-main-tab" [class.active]="admissionMainTab === 'teacher'" (click)="switchAdmissionMainTab('teacher')">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-                <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              Teacher Admission
-            </button>
-          </div>
-
-          <!-- Student Admission Section -->
-          <div *ngIf="admissionMainTab === 'student'" class="admission-section">
-            <!-- Sub-tabs for Student -->
-            <div class="admission-sub-tabs">
-              <button class="admission-sub-tab" [class.active]="studentSubTab === 'new'" (click)="studentSubTab = 'new'">
-                New Admission
-              </button>
-              <button class="admission-sub-tab" [class.active]="studentSubTab === 'pending'" (click)="loadStudentAdmissions('pending')">
-                Pending Applications
-              </button>
-              <button class="admission-sub-tab" [class.active]="studentSubTab === 'approved'" (click)="loadStudentAdmissions('approved')">
-                Approved Students
-              </button>
-              <button class="admission-sub-tab" [class.active]="studentSubTab === 'rejected'" (click)="loadStudentAdmissions('rejected')">
-                Rejected / Hold
-              </button>
-            </div>
-
-            <!-- New Student Admission Form -->
-            <div *ngIf="studentSubTab === 'new'" class="admission-form-section">
-              <div class="admission-form-header">
-                <h3>New Student Admission</h3>
-                <p>Fill in the student details to create a new admission application</p>
-              </div>
-              <form (ngSubmit)="submitStudentAdmission()" class="admission-form">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>First Name *</label>
-                    <input type="text" class="form-input" [(ngModel)]="studentForm.firstName" name="studentFirstName" required />
-                  </div>
-                  <div class="form-group">
-                    <label>Last Name *</label>
-                    <input type="text" class="form-input" [(ngModel)]="studentForm.lastName" name="studentLastName" required />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Email *</label>
-                    <input type="email" class="form-input" [(ngModel)]="studentForm.email" name="studentEmail" required />
-                  </div>
-                  <div class="form-group">
-                    <label>Phone</label>
-                    <input type="tel" class="form-input" [(ngModel)]="studentForm.phone" name="studentPhone" />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Gender</label>
-                    <select class="form-input" [(ngModel)]="studentForm.gender" name="studentGender">
-                      <option value="">Select</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label>Course *</label>
-                    <select class="form-input" [(ngModel)]="studentForm.courseId" name="studentCourseId" (change)="onStudentFormCourseChange()">
-                      <option [value]="null" disabled>Select Course</option>
-                      <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-                    </select>
-                    <div *ngIf="courses.length === 0" style="color: #ef4444; font-size: 12px; margin-top: 4px;">No courses available. Create courses first.</div>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Academic Year</label>
-                    <input type="text" class="form-input" [(ngModel)]="studentForm.academicYear" name="studentAcademicYear" />
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Address</label>
-                  <textarea class="form-input" [(ngModel)]="studentForm.address" name="studentAddress" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                  <label>Previous Qualification</label>
-                  <textarea class="form-input" [(ngModel)]="studentForm.previousQualification" name="studentPreviousQualification" rows="3"></textarea>
-                </div>
-
-                <!-- Document Upload Section -->
-                <div class="documents-section">
-                  <h4>Documents</h4>
-                  <div class="doc-grid">
-                    <div class="doc-item">
-                      <label>ID Proof</label>
-                      <input type="file" #idProofInput (change)="onFileSelect($event, 'student', 'idProof')" accept="image/*,.pdf" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="idProofInput.click()">Upload</button>
-                      <img *ngIf="studentForm.idProof" [src]="studentForm.idProof" class="doc-preview" />
-                    </div>
-                    <div class="doc-item">
-                      <label>Marksheet</label>
-                      <input type="file" #marksheetInput (change)="onFileSelect($event, 'student', 'marksheet')" accept="image/*,.pdf" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="marksheetInput.click()">Upload</button>
-                      <img *ngIf="studentForm.marksheet" [src]="studentForm.marksheet" class="doc-preview" />
-                    </div>
-                    <div class="doc-item">
-                      <label>TC / LC</label>
-                      <input type="file" #tcLcInput (change)="onFileSelect($event, 'student', 'tcLc')" accept="image/*,.pdf" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="tcLcInput.click()">Upload</button>
-                      <img *ngIf="studentForm.tcLc" [src]="studentForm.tcLc" class="doc-preview" />
-                    </div>
-                    <div class="doc-item">
-                      <label>Photo</label>
-                      <input type="file" #photoInput (change)="onFileSelect($event, 'student', 'photo')" accept="image/*" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="photoInput.click()">Upload</button>
-                      <img *ngIf="studentForm.photo" [src]="studentForm.photo" class="doc-preview" />
-                    </div>
-                  </div>
-                </div>
-
-                <div class="form-actions">
-                  <button type="button" class="btn-secondary" (click)="resetStudentForm()">Reset</button>
-                  <button type="submit" class="btn-primary" [disabled]="isSubmittingStudent">
-                    {{ isSubmittingStudent ? 'Submitting...' : 'Submit Application' }}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <!-- Student Admissions List -->
-            <div *ngIf="studentSubTab !== 'new'" class="admission-list-section">
-              <div class="admission-list-header">
-                <h3>{{ getStudentSubTabTitle() }}</h3>
-                <button class="btn-primary" (click)="studentSubTab = 'new'">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                  New Admission
-                </button>
-              </div>
-
-              <div *ngIf="isLoadingStudentAdmissions" class="loading">Loading...</div>
-              <div *ngIf="!isLoadingStudentAdmissions && studentAdmissions.length === 0" class="empty-state">
-                <p>No {{ studentSubTab }} applications found</p>
-              </div>
-
-              <div *ngIf="!isLoadingStudentAdmissions && studentAdmissions.length > 0" class="admissions-list">
-                <div class="admission-card" *ngFor="let admission of studentAdmissions">
-                  <div class="admission-card-header">
-                    <div class="admission-card-title">
-                      <div class="admission-avatar">
-                        <img *ngIf="admission.photo" [src]="admission.photo" />
-                        <span *ngIf="!admission.photo">{{ (admission.firstName && admission.firstName.charAt(0)) || 'S' }}{{ (admission.lastName && admission.lastName.charAt(0)) || '' }}</span>
-                      </div>
-                      <div>
-                        <h4>{{ admission.firstName }} {{ admission.lastName }}</h4>
-                        <p>{{ admission.email }}</p>
-                      </div>
-                    </div>
-                    <span class="status-badge" [class]="'status-' + admission.status">{{ admission.status | titlecase }}</span>
-                  </div>
-                  <div class="admission-card-body">
-                    <div class="info-grid">
-                      <div class="info-item">
-                        <span class="info-label">Class:</span>
-                        <span class="info-value">{{ admission.classCourse || 'N/A' }}</span>
-                      </div>
-                      <div class="info-item">
-                        <span class="info-label">Academic Year:</span>
-                        <span class="info-value">{{ admission.academicYear || 'N/A' }}</span>
-                      </div>
-                      <div class="info-item">
-                        <span class="info-label">Phone:</span>
-                        <span class="info-value">{{ admission.phone || 'N/A' }}</span>
-                      </div>
-                      <div class="info-item">
-                        <span class="info-label">Submitted:</span>
-                        <span class="info-value">{{ formatAdmissionDate(admission.submittedAt) }}</span>
-                      </div>
-                    </div>
-                    <div *ngIf="admission.adminRemark" class="remark-section">
-                      <strong>Admin Remark:</strong> {{ admission.adminRemark }}
-                    </div>
-                  </div>
-                  <div class="admission-card-actions">
-                    <div>
-                      <button class="btn-view" (click)="viewAdmission(admission)">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        View
-                      </button>
-                      <div *ngIf="admission.status === 'submitted' || admission.status === 'under_review'">
-                        <button class="btn-approve" (click)="approveStudentAdmission(admission.id!)">
-                          ✅ Approve
-                        </button>
-                        <button class="btn-reject" (click)="rejectStudentAdmission(admission.id!)">
-                          ❌ Reject
-                        </button>
-                        <button class="btn-correction" (click)="openCorrectionModal(admission)">
-                          🔄 Correction Required
-                        </button>
-                      </div>
-                    </div>
-                    <button class="btn-delete" (click)="deleteStudentAdmission(admission.id!)" [title]="'Delete admission'">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      </svg>
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Teacher Admission Section -->
-          <div *ngIf="admissionMainTab === 'teacher'" class="admission-section">
-            <!-- Sub-tabs for Teacher -->
-            <div class="admission-sub-tabs">
-              <button class="admission-sub-tab" [class.active]="teacherSubTab === 'new'" (click)="teacherSubTab = 'new'">
-                New Onboarding
-              </button>
-              <button class="admission-sub-tab" [class.active]="teacherSubTab === 'pending'" (click)="loadTeacherAdmissions('pending')">
-                Pending Verification
-              </button>
-              <button class="admission-sub-tab" [class.active]="teacherSubTab === 'approved'" (click)="loadTeacherAdmissions('approved')">
-                Approved Teachers
-              </button>
-              <button class="admission-sub-tab" [class.active]="teacherSubTab === 'rejected'" (click)="loadTeacherAdmissions('rejected')">
-                Rejected / Hold
-              </button>
-            </div>
-
-            <!-- New Teacher Admission Form -->
-            <div *ngIf="teacherSubTab === 'new'" class="admission-form-section">
-              <div class="admission-form-header">
-                <h3>New Teacher Onboarding</h3>
-                <p>Fill in the teacher details to create a new onboarding application</p>
-              </div>
-              <form (ngSubmit)="submitTeacherAdmission()" class="admission-form">
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>First Name *</label>
-                    <input type="text" class="form-input" [(ngModel)]="teacherForm.firstName" name="teacherFirstName" required />
-                  </div>
-                  <div class="form-group">
-                    <label>Last Name *</label>
-                    <input type="text" class="form-input" [(ngModel)]="teacherForm.lastName" name="teacherLastName" required />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Email *</label>
-                    <input type="email" class="form-input" [(ngModel)]="teacherForm.email" name="teacherEmail" required />
-                  </div>
-                  <div class="form-group">
-                    <label>Phone</label>
-                    <input type="tel" class="form-input" [(ngModel)]="teacherForm.phone" name="teacherPhone" />
-                  </div>
-                </div>
-                <div class="form-row">
-                  <div class="form-group">
-                    <label>Gender</label>
-                    <select class="form-input" [(ngModel)]="teacherForm.gender" name="teacherGender">
-                      <option value="">Select</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label>Qualification</label>
-                  <textarea class="form-input" [(ngModel)]="teacherForm.qualification" name="teacherQualification" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                  <label>Experience</label>
-                  <textarea class="form-input" [(ngModel)]="teacherForm.experience" name="teacherExperience" rows="3"></textarea>
-                </div>
-                <div class="form-group">
-                  <label>Address</label>
-                  <textarea class="form-input" [(ngModel)]="teacherForm.address" name="teacherAddress" rows="3"></textarea>
-                </div>
-
-                <!-- Document Upload Section -->
-                <div class="documents-section">
-                  <h4>Documents</h4>
-                  <div class="doc-grid">
-                    <div class="doc-item">
-                      <label>ID Proof</label>
-                      <input type="file" #teacherIdProofInput (change)="onFileSelect($event, 'teacher', 'idProof')" accept="image/*,.pdf" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="teacherIdProofInput.click()">Upload</button>
-                      <img *ngIf="teacherForm.idProof" [src]="teacherForm.idProof" class="doc-preview" />
-                    </div>
-                    <div class="doc-item">
-                      <label>Degree Certificate</label>
-                      <input type="file" #degreeInput (change)="onFileSelect($event, 'teacher', 'degreeCertificate')" accept="image/*,.pdf" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="degreeInput.click()">Upload</button>
-                      <img *ngIf="teacherForm.degreeCertificate" [src]="teacherForm.degreeCertificate" class="doc-preview" />
-                    </div>
-                    <div class="doc-item">
-                      <label>Resume</label>
-                      <input type="file" #resumeInput (change)="onFileSelect($event, 'teacher', 'resume')" accept="image/*,.pdf" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="resumeInput.click()">Upload</button>
-                      <img *ngIf="teacherForm.resume" [src]="teacherForm.resume" class="doc-preview" />
-                    </div>
-                    <div class="doc-item">
-                      <label>Photo</label>
-                      <input type="file" #teacherPhotoInput (change)="onFileSelect($event, 'teacher', 'photo')" accept="image/*" style="display: none;" />
-                      <button type="button" class="doc-upload-btn" (click)="teacherPhotoInput.click()">Upload</button>
-                      <img *ngIf="teacherForm.photo" [src]="teacherForm.photo" class="doc-preview" />
-                    </div>
-                  </div>
-                </div>
-
-                <div class="form-actions">
-                  <button type="button" class="btn-secondary" (click)="resetTeacherForm()">Reset</button>
-                  <button type="submit" class="btn-primary" [disabled]="isSubmittingTeacher">
-                    {{ isSubmittingTeacher ? 'Submitting...' : 'Submit Application' }}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            <!-- Teacher Admissions List -->
-            <div *ngIf="teacherSubTab !== 'new'" class="admission-list-section">
-              <div class="admission-list-header">
-                <h3>{{ getTeacherSubTabTitle() }}</h3>
-                <button class="btn-primary" (click)="teacherSubTab = 'new'">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                  New Onboarding
-                </button>
-              </div>
-
-              <div *ngIf="isLoadingTeacherAdmissions" class="loading">Loading...</div>
-              <div *ngIf="!isLoadingTeacherAdmissions && teacherAdmissions.length === 0" class="empty-state">
-                <p>No {{ teacherSubTab }} applications found</p>
-              </div>
-
-              <div *ngIf="!isLoadingTeacherAdmissions && teacherAdmissions.length > 0" class="admissions-list">
-                <div class="admission-card" *ngFor="let admission of teacherAdmissions">
-                  <div class="admission-card-header">
-                    <div class="admission-card-title">
-                      <div class="admission-avatar">
-                        <img *ngIf="admission.photo" [src]="admission.photo" />
-                        <span *ngIf="!admission.photo">{{ (admission.firstName && admission.firstName.charAt(0)) || 'T' }}{{ (admission.lastName && admission.lastName.charAt(0)) || '' }}</span>
-                      </div>
-                      <div>
-                        <h4>{{ admission.firstName }} {{ admission.lastName }}</h4>
-                        <p>{{ admission.email }}</p>
-                      </div>
-                    </div>
-                    <span class="status-badge" [class]="'status-' + admission.status">{{ admission.status | titlecase }}</span>
-                  </div>
-                  <div class="admission-card-body">
-                    <div class="info-grid">
-                      <div class="info-item">
-                        <span class="info-label">Qualification:</span>
-                        <span class="info-value">{{ admission.qualification || 'N/A' }}</span>
-                      </div>
-                      <div class="info-item">
-                        <span class="info-label">Experience:</span>
-                        <span class="info-value">{{ admission.experience || 'N/A' }}</span>
-                      </div>
-                      <div class="info-item">
-                        <span class="info-label">Phone:</span>
-                        <span class="info-value">{{ admission.phone || 'N/A' }}</span>
-                      </div>
-                      <div class="info-item">
-                        <span class="info-label">Submitted:</span>
-                        <span class="info-value">{{ formatAdmissionDate(admission.submittedAt) }}</span>
-                      </div>
-                    </div>
-                    <div *ngIf="admission.adminRemark" class="remark-section">
-                      <strong>Admin Remark:</strong> {{ admission.adminRemark }}
-                    </div>
-                  </div>
-                  <div class="admission-card-actions">
-                    <div>
-                      <button class="btn-view" (click)="viewTeacherAdmission(admission)">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        View
-                      </button>
-                      <button class="btn-delete" (click)="deleteTeacherAdmission(admission.id!)" [title]="'Delete admission'">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        Delete
-                      </button>
-                    </div>
-                    <div *ngIf="admission.status === 'submitted' || admission.status === 'under_review'">
-                      <button class="btn-approve" (click)="approveTeacherAdmission(admission.id!)">
-                        ✅ Approve
-                      </button>
-                      <button class="btn-reject" (click)="rejectTeacherAdmission(admission.id!)">
-                        ❌ Reject
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Students Tab -->
-        <div class="dashboard-section" *ngIf="activeTab === 'students'">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Students</h2>
-              <p class="section-subtitle">Manage all approved students, view profiles, and update information</p>
-            </div>
-            <button class="btn-primary" (click)="openAddStudentModal()" *ngIf="false">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-              Add Student
-            </button>
-          </div>
-
-          <!-- Student Status Filters -->
-          <div class="student-filters">
-            <button class="filter-btn" [class.active]="studentFilter === 'all'" (click)="loadStudents('all')">
-              All Students
-            </button>
-            <button class="filter-btn" [class.active]="studentFilter === 'active'" (click)="loadStudents('active')">
-              Active
-            </button>
-            <button class="filter-btn" [class.active]="studentFilter === 'inactive'" (click)="loadStudents('inactive')">
-              Inactive
-            </button>
-            <button class="filter-btn" [class.active]="studentFilter === 'pass-out'" (click)="loadStudents('pass-out')">
-              Pass-out
-            </button>
-          </div>
-
-          <!-- Students List -->
-          <div class="students-list-section">
-            <div *ngIf="isLoadingStudents" class="loading">Loading students...</div>
-            <div *ngIf="!isLoadingStudents && students.length === 0 && studentAdmissions.length === 0" class="empty-state">
-              <p>No students found</p>
-            </div>
-
-            <!-- Approved Students -->
-            <div *ngIf="!isLoadingStudents && students.length > 0" class="students-grid">
-              <div class="student-card" *ngFor="let student of students">
-                <div class="student-card-header">
-                  <div class="student-avatar">
-                    <img *ngIf="student.profileImage" [src]="student.profileImage" />
-                    <span *ngIf="!student.profileImage">{{ (student.firstName && student.firstName.charAt(0)) || 'S' }}{{ (student.lastName && student.lastName.charAt(0)) || '' }}</span>
-                  </div>
-                  <div class="student-info">
-                    <h3>{{ student.firstName }} {{ student.lastName }}</h3>
-                    <p>{{ student.email }}</p>
-                    <p *ngIf="student.rollNumber" class="roll-number">Roll: {{ student.rollNumber }}</p>
-                  </div>
-                  <span class="status-badge" [class]="student.isActive ? 'status-active' : 'status-inactive'">
-                    {{ student.isActive ? 'Active' : 'Inactive' }}
-                  </span>
-                </div>
-                <div class="student-card-body">
-                  <div class="info-row">
-                    <span class="info-label">Class:</span>
-                    <span class="info-value">{{ student.classCourse || 'N/A' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Section:</span>
-                    <span class="info-value">{{ student.classSection || 'N/A' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Academic Year:</span>
-                    <span class="info-value">{{ student.academicYear || 'N/A' }}</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="info-label">Phone:</span>
-                    <span class="info-value">{{ student.phone || 'N/A' }}</span>
-                  </div>
-                </div>
-                <div class="student-card-actions">
-                  <button class="btn-view" (click)="viewStudent(student)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    View
-                  </button>
-                  <button class="btn-edit" (click)="editStudent(student)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Edit
-                  </button>
-                  <button class="btn-status" (click)="toggleStudentActiveStatus(student)" [title]="student.isActive ? 'Click to deactivate' : 'Click to activate'">
-                    Status
-                  </button>
-                  <button class="btn-delete" (click)="deleteStudent(student)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Teachers Tab -->
-        <div class="dashboard-section" *ngIf="activeTab === 'teachers'">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Teachers</h2>
-              <p class="section-subtitle">Manage all onboarded teachers, view profiles, and update information</p>
-            </div>
-          </div>
-
-          <!-- Teacher Status Filters -->
-          <div class="student-filters">
-            <button class="filter-btn" [class.active]="teacherFilter === 'all'" (click)="loadTeachers('all')">
-              All Teachers
-            </button>
-            <button class="filter-btn" [class.active]="teacherFilter === 'active'" (click)="loadTeachers('active')">
-              Active
-            </button>
-            <button class="filter-btn" [class.active]="teacherFilter === 'inactive'" (click)="loadTeachers('inactive')">
-              Inactive
-            </button>
-          </div>
-
-          <!-- Teachers List -->
-          <div class="students-list-section">
-            <div *ngIf="isLoadingTeachers" class="loading">Loading teachers...</div>
-            <div *ngIf="!isLoadingTeachers && teachers.length === 0" class="empty-state">
-              <p>No teachers found</p>
-            </div>
-
-            <!-- Approved Teachers -->
-            <div *ngIf="!isLoadingTeachers && teachers.length > 0" class="students-grid">
-              <div class="student-card" *ngFor="let teacher of teachers">
-                <div class="student-card-header">
-                  <div class="student-avatar">
-                    <img *ngIf="teacher.profileImage" [src]="teacher.profileImage" />
-                    <span *ngIf="!teacher.profileImage">{{ (teacher.firstName && teacher.firstName.charAt(0)) || 'T' }}{{ (teacher.lastName && teacher.lastName.charAt(0)) || '' }}</span>
-                  </div>
-                  <div class="student-info">
-                    <h3>{{ teacher.firstName }} {{ teacher.lastName }}</h3>
-                    <p>{{ teacher.email }}</p>
-                    <p *ngIf="teacher.employeeId" class="roll-number">Employee ID: {{ teacher.employeeId }}</p>
-                    <p *ngIf="teacher.qualification" class="roll-number">Qualification: {{ teacher.qualification }}</p>
-                  </div>
-                  <span class="status-badge" [class]="teacher.isActive ? 'status-active' : 'status-inactive'">
-                    {{ teacher.isActive ? 'Active' : 'Inactive' }}
-                  </span>
-                </div>
-                <div class="student-info-grid">
-                  <div class="info-item">
-                    <span class="info-label">Specialization:</span>
-                    <span class="info-value">{{ teacher.specialization || 'N/A' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">Subjects:</span>
-                    <span class="info-value">{{ teacher.subjects || 'Not assigned' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <span class="info-label">Phone:</span>
-                    <span class="info-value">{{ teacher.phone || 'N/A' }}</span>
-                  </div>
-                </div>
-                <div class="student-actions">
-                  <button class="btn-view" (click)="openTeacherDetailsModal(teacher)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M1 12S5 4 12 4S23 12 23 12S19 20 12 20S1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    View
-                  </button>
-                  <button class="btn-edit" (click)="openEditTeacherModal(teacher)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Edit
-                  </button>
-                  <button class="btn-status" (click)="toggleTeacherActiveStatus(teacher)" [title]="teacher.isActive ? 'Click to deactivate' : 'Click to activate'">
-                    Status
-                  </button>
-                  <button class="btn-subjects" (click)="openSubjectAssignmentModal(teacher)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Assign Subjects
-                  </button>
-                  <button class="btn-delete" (click)="deleteTeacher(teacher)">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                      <path d="M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- My Subjects Tab -->
-        <div class="dashboard-section" *ngIf="activeTab === 'subjects'">
-          <!-- Feature Disabled Message -->
-          <div *ngIf="!isFeatureEnabled('My Subjects') && !isFeatureEnabled('subjects')" class="empty-state" style="padding: 60px 20px; text-align: center; min-height: 400px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 24px; opacity: 0.6;">
-              <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M12 8V12M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <h2 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 24px; font-weight: 700;">Access Denied</h2>
-            <p style="color: var(--text-gray); margin: 0; font-size: 16px; max-width: 500px;">You don't have access to this feature. The "My Subjects" feature has been disabled for your institution.</p>
-            <p style="color: var(--text-gray); margin: 12px 0 0 0; font-size: 14px; opacity: 0.8;">Please contact your administrator to enable this feature.</p>
-          </div>
-          
-          <!-- My Subjects Content (only shown if feature is enabled) -->
-          <div *ngIf="isFeatureEnabled('My Subjects') || isFeatureEnabled('subjects')">
-            <div class="section-header">
-              <div>
-                <h2 class="section-title">My Subjects</h2>
-                <p class="section-subtitle">Manage courses, classes, subjects, and teacher assignments</p>
-              </div>
-            </div>
-
-          <!-- Sub-tabs for Course, Class, Subject Management -->
-          <div class="admission-sub-tabs">
-            <button class="admission-sub-tab" [class.active]="subjectSubTab === 'courses'" (click)="subjectSubTab = 'courses'">
-              Courses
-            </button>
-            <button class="admission-sub-tab" [class.active]="subjectSubTab === 'classes'" (click)="subjectSubTab = 'classes'">
-              Classes / Semesters
-            </button>
-            <button class="admission-sub-tab" [class.active]="subjectSubTab === 'sections'" (click)="subjectSubTab = 'sections'" *ngIf="isFeatureEnabled('Sections')">
-              Sections
-            </button>
-            <button class="admission-sub-tab" [class.active]="subjectSubTab === 'subjects'" (click)="subjectSubTab = 'subjects'; loadAllSubjects();">
-              Subjects
-            </button>
-            <button class="admission-sub-tab" [class.active]="subjectSubTab === 'teacher-assignment'" (click)="subjectSubTab = 'teacher-assignment'; loadTeachers('all');">
-              Teacher Assignment
-            </button>
-          </div>
-
-          <!-- Courses Tab -->
-          <div *ngIf="subjectSubTab === 'courses'" class="admission-form-section">
-            <div class="form-header">
-              <h3>Course Management</h3>
-              <button class="btn-primary" (click)="openCourseModal()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Create Course
-              </button>
-            </div>
-
-            <div *ngIf="isLoadingCourses" class="loading">Loading courses...</div>
-            <div *ngIf="!isLoadingCourses && courses.length === 0" class="empty-state">
-              <p>No courses found. Create your first course to get started.</p>
-            </div>
-
-            <div *ngIf="!isLoadingCourses && courses.length > 0" class="courses-grid">
-              <div class="course-card" *ngFor="let course of courses">
-                <div class="course-card-header">
-                  <h4>{{ course.name }}</h4>
-                  <span class="status-badge" [class]="'status-' + course.status">
-                    {{ course.status }}
-                  </span>
-                </div>
-                <div class="course-card-body">
-                  <p><strong>Type:</strong> {{ course.type }}</p>
-                  <p *ngIf="course.durationYears"><strong>Duration:</strong> {{ course.durationYears }} years</p>
-                  <p *ngIf="course.durationSemesters"><strong>Duration:</strong> {{ course.durationSemesters }} semesters</p>
-                </div>
-                <div class="course-card-actions">
-                  <button class="btn-edit" (click)="editCourse(course)">Edit</button>
-                  <button class="btn-delete" (click)="deleteCourse(course.id!)" *ngIf="course.id">Delete</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Classes Tab -->
-          <div *ngIf="subjectSubTab === 'classes'" class="admission-form-section">
-            <div class="form-header">
-              <h3>Class / Semester Management</h3>
-              <button class="btn-primary" (click)="openClassModal()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Create Class / Semester
-              </button>
-            </div>
-
-            <div *ngIf="courses.length === 0" class="empty-state">
-              <p>Please create a course first before creating classes/semesters.</p>
-            </div>
-
-            <div *ngIf="courses.length > 0" class="form-group">
-              <label>Select Course</label>
-              <select class="form-input" [(ngModel)]="selectedCourseForClass" (change)="loadClassesForCourse()">
-                <option value="">Select a course</option>
-                <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-              </select>
-            </div>
-
-            <div *ngIf="isLoadingClasses" class="loading">Loading classes...</div>
-            <div *ngIf="!isLoadingClasses && selectedCourseForClass && classes.length === 0" class="empty-state">
-              <p>No classes/semesters found for this course.</p>
-            </div>
-
-            <div *ngIf="!isLoadingClasses && classes.length > 0" class="classes-grid">
-              <div class="class-card" *ngFor="let classItem of classes">
-                <div class="class-card-header">
-                  <h4>{{ classItem.name }}</h4>
-                  <span class="status-badge" [class]="'status-' + classItem.status">
-                    {{ classItem.status }}
-                  </span>
-                </div>
-                <div class="class-card-body">
-                  <p><strong>Type:</strong> {{ classItem.type }}</p>
-                  <p *ngIf="classItem.academicYear"><strong>Academic Year:</strong> {{ classItem.academicYear }}</p>
-                </div>
-                <div class="class-card-actions">
-                  <button class="btn-edit" (click)="editClass(classItem)">Edit</button>
-                  <button class="btn-primary" (click)="manageSections(classItem)">Manage Sections</button>
-                  <button class="btn-delete" (click)="deleteClass(classItem.id!)" *ngIf="classItem.id">Delete</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Sections Tab -->
-          <div *ngIf="subjectSubTab === 'sections'" class="admission-form-section">
-            <!-- Feature Disabled Message -->
-            <div *ngIf="!isFeatureEnabled('Sections')" class="empty-state" style="padding: 40px; text-align: center;">
-              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin: 0 auto 16px; opacity: 0.5;">
-                <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M12 8V12M12 16H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              <h3 style="margin: 0 0 8px 0; color: var(--text-primary);">Sections Feature Disabled</h3>
-              <p style="color: var(--text-gray); margin: 0;">This feature has been disabled for your institution. Please contact your administrator to enable it.</p>
-            </div>
-            
-            <!-- Sections Content (only shown if feature is enabled) -->
-            <div *ngIf="isFeatureEnabled('Sections')">
-              <div class="form-header">
-                <h3>Section Management</h3>
-                <p style="color: var(--text-gray); font-size: 14px; margin-top: 8px;">
-                  Create sections (A, B, C, D, E, etc.) for classes/semesters. Subjects created for a class will automatically be available for ALL sections.
-                </p>
-              </div>
-
-              <div *ngIf="courses.length === 0" class="empty-state">
-                <p>Please create a course and class first before creating sections.</p>
-              </div>
-
-              <div *ngIf="courses.length > 0" class="form-row">
-                <div class="form-group">
-                  <label>Select Course</label>
-                  <select class="form-input" [(ngModel)]="selectedCourseForSections" (change)="onCourseChangeForSections()">
-                    <option value="">Select a course</option>
-                    <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label>Select Class / Semester</label>
-                  <select class="form-input" [(ngModel)]="selectedClassForSectionsTab" [disabled]="!selectedCourseForSections" (change)="onClassChangeForSections()">
-                    <option value="">Select a class/semester</option>
-                    <option *ngFor="let classItem of classesForSections" [value]="classItem.id">{{ classItem.name }}</option>
-                  </select>
-                </div>
-              </div>
-
-              <!-- Section Creation Form -->
-              <div *ngIf="selectedClassForSectionsTab" class="section-management-box" style="margin-top: 24px; padding: 20px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border-gray);">
-              <div class="form-header" style="margin-bottom: 20px;">
-                <h4 style="margin: 0;">Add New Section for {{ getClassNameForSections() }}</h4>
-                <button class="btn-primary" (click)="sectionForm = { classId: selectedClassForSectionsTab, status: 'active' }; isEditingSection = false">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  </svg>
-                  Add Section
-                </button>
-              </div>
-
-              <!-- Section Form (for both create and edit) -->
-              <div *ngIf="sectionForm.classId" class="form-row">
-                <div class="form-group">
-                  <label>Section Name *</label>
-                  <input type="text" class="form-input" [(ngModel)]="sectionForm.name" placeholder="e.g., A, B, C, D, E" />
-                </div>
-                <div class="form-group">
-                  <label>Capacity (Optional)</label>
-                  <input type="number" class="form-input" [(ngModel)]="sectionForm.capacity" placeholder="Max students" />
-                </div>
-              </div>
-              <div *ngIf="sectionForm.classId" class="form-group" style="margin-top: 12px;">
-                <label>Status</label>
-                <select class="form-input" [(ngModel)]="sectionForm.status">
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-              <div *ngIf="sectionForm.classId" class="form-actions" style="margin-top: 16px;">
-                <button class="btn-primary" (click)="saveSection()">{{ isEditingSection ? 'Update Section' : 'Save Section' }}</button>
-                <button class="btn-secondary" (click)="cancelSectionEdit()">Cancel</button>
-              </div>
-
-              <!-- Existing Sections List -->
-              <div *ngIf="sectionsForSectionsTab.length > 0 && !isEditingSection && isFeatureEnabled('Sections')" style="margin-top: 24px;">
-                <h4 style="margin-bottom: 16px;">Existing Sections</h4>
-                <div class="sections-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px;">
-                  <div class="section-card" *ngFor="let section of sectionsForSectionsTab" style="padding: 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-gray); border-radius: 8px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                      <span style="font-weight: 700; font-size: 18px;">{{ section.name }}</span>
-                      <span class="status-badge" [class]="'status-' + section.status">{{ section.status }}</span>
-                    </div>
-                    <p *ngIf="section.capacity" style="color: var(--text-gray); font-size: 13px; margin: 8px 0;">
-                      <span *ngIf="getSectionStudentCount(section.id!) !== null">
-                        Capacity: {{ getSectionStudentCount(section.id!) }}/{{ section.capacity }} students
-                        <span *ngIf="getRemainingCapacity(section) >= 0" style="color: var(--accent-green); font-weight: 700;">
-                          (Remaining: {{ getRemainingCapacity(section) }})
-                        </span>
-                        <span *ngIf="getRemainingCapacity(section) < 0" style="color: #ef4444; font-weight: 700;">
-                          (FULL)
-                        </span>
-                      </span>
-                      <span *ngIf="getSectionStudentCount(section.id!) === null">
-                        Capacity: {{ section.capacity }} students
-                      </span>
-                    </p>
-                    <div style="display: flex; gap: 8px; margin-top: 12px;">
-                      <button class="btn-view" (click)="viewSectionStudents(section)" style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px;" title="View Students">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-                        </svg>
-                        View
-                      </button>
-                      <button class="btn-edit" (click)="editSection(section)" style="flex: 1;">Edit</button>
-                      <button class="btn-delete" (click)="deleteSection(section.id!)" *ngIf="section.id" style="flex: 1;">Delete</button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div *ngIf="selectedClassForSectionsTab && sectionsForSectionsTab.length === 0 && !isLoadingSectionsForTab" class="empty-state" style="margin-top: 24px;">
-                <p>No sections created yet. Add your first section (e.g., A, B, C) for this class.</p>
-              </div>
-
-              <div *ngIf="isLoadingSectionsForTab" class="loading" style="margin-top: 24px;">Loading sections...</div>
-            </div>
-
-            <div *ngIf="!selectedClassForSectionsTab && courses.length > 0" class="empty-state" style="margin-top: 24px;">
-              <p>Please select a course and class/semester to manage sections.</p>
-            </div>
-          </div>
-
-          <!-- Subjects Tab -->
-          <div *ngIf="isSubjectsTab()" class="admission-form-section">
-            <div class="form-header">
-              <h3>Subject Management</h3>
-              <button class="btn-primary" (click)="openSubjectModal()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Create Subject
-              </button>
-            </div>
-
-            <!-- Debug info (temporary) -->
-            <div style="padding: 10px; background: rgba(255,0,0,0.1); margin: 10px 0; border-radius: 4px; font-size: 12px;">
-              <p>Debug: subjectSubTab = "{{ subjectSubTab }}"</p>
-              <p>Debug: isSubjectsTab() = {{ isSubjectsTab() }}</p>
-              <p>Debug: isLoadingAllSubjects = {{ isLoadingAllSubjects }}</p>
-              <p>Debug: allSubjects.length = {{ allSubjects.length }}</p>
-              <p>Debug: entity?.id = {{ entity?.id }}</p>
-            </div>
-
-            <div *ngIf="isLoadingAllSubjects" class="loading">Loading subjects...</div>
-            <div *ngIf="!isLoadingAllSubjects && allSubjects.length === 0" class="empty-state">
-              <p>No subjects found. Create your first subject to get started.</p>
-              <button class="btn-primary" (click)="openSubjectModal()" style="margin-top: 15px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Create Your First Subject
-              </button>
-            </div>
-
-            <!-- Force render test -->
-            <div style="padding: 10px; background: rgba(0,255,0,0.1); margin: 10px 0; border-radius: 4px; border: 2px solid green;">
-              <p><strong>RENDER TEST:</strong></p>
-              <p>allSubjects.length = {{ allSubjects.length }}</p>
-              <p>!isLoadingAllSubjects = {{ !isLoadingAllSubjects }}</p>
-              <p>Condition result = {{ !isLoadingAllSubjects && allSubjects.length > 0 }}</p>
-              <p>First subject name = {{ allSubjects.length > 0 ? allSubjects[0].name : 'N/A' }}</p>
-            </div>
-
-            <div *ngIf="!isLoadingAllSubjects && allSubjects.length > 0" class="courses-grid">
-              <div class="course-card" *ngFor="let subject of allSubjects; let i = index">
-                <div class="course-card-header">
-                  <h4>{{ subject.name }}</h4>
-                  <span class="status-badge" [class]="'status-' + subject.status">
-                    {{ subject.status }}
-                  </span>
-                </div>
-                <div class="course-card-body">
-                  <p><strong>Code:</strong> {{ subject.subjectCode }}</p>
-                  <p><strong>Type:</strong> {{ subject.subjectType }}</p>
-                  <p><strong>Course:</strong> {{ getCourseName(subject.courseId) }}</p>
-                  <p><strong>Class:</strong> {{ getClassName(subject.classId) }}</p>
-                  <p *ngIf="subject.maxMarks"><strong>Max Marks:</strong> {{ subject.maxMarks }}</p>
-                  <p *ngIf="subject.credits"><strong>Credits:</strong> {{ subject.credits }}</p>
-                </div>
-                <div class="course-card-actions">
-                  <button class="btn-edit" (click)="editSubject(subject)">Edit</button>
-                  <button class="btn-delete" (click)="deleteSubject(subject.id!)" *ngIf="subject.id">Delete</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          </div>
-        </div>
-
-        <!-- Teacher Assignment Tab -->
-          <div *ngIf="subjectSubTab === 'teacher-assignment'" class="admission-form-section">
-            <div class="form-header">
-              <h3>Teacher Assignment</h3>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label>Select Subject</label>
-                <select class="form-input" [(ngModel)]="selectedSubjectForAssignment" (change)="loadTeachersForSubject()">
-                  <option value="">Select a subject</option>
-                  <option *ngFor="let subject of allSubjects" [value]="subject.id">
-                    {{ subject.name }} ({{ subject.subjectCode }})
-                  </option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Select Section (Optional)</label>
-                <select class="form-input" [(ngModel)]="selectedSectionForAssignment" (change)="onSectionForAssignmentChange()" [disabled]="!selectedSubjectForAssignment || sectionsForAssignment.length === 0">
-                  <option value="">All Sections</option>
-                  <option *ngFor="let section of sectionsForAssignment" [value]="section.id">
-                    {{ section.name }}
-                  </option>
-                </select>
-                <small class="form-hint" *ngIf="selectedSubjectForAssignment && sectionsForAssignment.length === 0" style="color: #f59e0b;">
-                  ⚠️ No sections found for this subject's class. Create sections first.
-                </small>
-                <small class="form-hint" *ngIf="selectedSubjectForAssignment && sectionsForAssignment.length > 0">
-                  📌 Select a specific section (e.g., A, B, C) or leave as "All Sections" to assign for all sections.
-                </small>
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label>Select Teacher</label>
-              <select class="form-input" [(ngModel)]="selectedTeacherForAssignment" [disabled]="isLoadingTeachers">
-                <option value="">{{ isLoadingTeachers ? 'Loading teachers...' : 'Select a teacher' }}</option>
-                <option *ngFor="let teacher of filteredTeachersForAssignment" [value]="teacher.id">
-                  {{ teacher.firstName }} {{ teacher.lastName }}
-                </option>
-              </select>
-              <small class="form-hint" *ngIf="!isLoadingTeachers && teachers.length === 0" style="color: #f59e0b; margin-top: 8px; display: block;">
-                ⚠️ No teachers found. Please add teachers first from the Teachers tab.
-              </small>
-              <small class="form-hint" *ngIf="!isLoadingTeachers && teachers.length > 0" style="color: var(--text-gray); margin-top: 8px; display: block;">
-                📌 {{ teachers.length }} teacher(s) available
-              </small>
-            </div>
-
-            <div class="form-actions">
-              <button class="btn-primary" (click)="assignTeacherToSubject()" [disabled]="!selectedSubjectForAssignment || !selectedTeacherForAssignment">
-                Assign Teacher
-              </button>
-            </div>
-
-            <div *ngIf="isLoadingTeacherAssignments" class="loading">Loading assignments...</div>
-            <div *ngIf="!isLoadingTeacherAssignments && filteredTeacherAssignments.length > 0" class="assignments-list">
-              <h4>Current Assignments</h4>
-              <div class="assignment-card" *ngFor="let assignment of filteredTeacherAssignments">
-                <div class="assignment-info">
-                  <p><strong>Subject:</strong> {{ getSubjectName(assignment.subjectId) }}</p>
-                  <p><strong>Teacher:</strong> {{ getTeacherName(assignment.teacherId) }}</p>
-                  <p><strong>Section:</strong> {{ assignment.sectionId ? getSectionName(assignment.sectionId) : 'All Sections' }}</p>
-                </div>
-                <button class="btn-delete" (click)="removeTeacherAssignment(assignment.id!)" *ngIf="assignment.id">Remove</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Settings Tab -->
-        <div class="settings-section" *ngIf="activeTab === 'settings' && entity">
-          <div class="settings-header">
-            <div>
-              <h2 class="settings-title">Entity Settings</h2>
-              <p class="settings-subtitle">Update entity information and configuration</p>
-            </div>
-            <button class="edit-icon-btn" (click)="toggleEditMode()" *ngIf="!isEditing">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M18.5 2.5C18.8978 2.10218 19.4374 1.87868 20 1.87868C20.5626 1.87868 21.1022 2.10218 21.5 2.5C21.8978 2.89782 22.1213 3.43739 22.1213 4C22.1213 4.56261 21.8978 5.10218 21.5 5.5L12 15L8 16L9 12L18.5 2.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </button>
-          </div>
-
-          <div class="settings-content">
-            <!-- Left Column: General Settings -->
-            <div class="settings-column">
-              <div class="settings-card">
-                <div class="card-header">
-                  <h3 class="card-title">General Settings</h3>
-                  <p class="card-subtitle">Basic entity information and configuration</p>
-                </div>
-                <div class="card-body">
-                  <div class="form-group">
-                    <label>Institution Name *</label>
-                    <input
-                      type="text"
-                      class="form-input"
-                      [(ngModel)]="editForm.name"
-                      [disabled]="!isEditing"
-                      placeholder="Enter institution name"
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Type *</label>
-                    <select class="form-input" [(ngModel)]="editForm.type" [disabled]="!isEditing">
-                      <option value="">Select type</option>
-                      <option value="SCHOOL">School</option>
-                      <option value="COLLEGE">College</option>
-                      <option value="UNIVERSITY">University</option>
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label>Address *</label>
-                    <input
-                      type="text"
-                      class="form-input"
-                      [(ngModel)]="editForm.address"
-                      [disabled]="!isEditing"
-                      placeholder="City, State/Country" 
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>College Logo</label>
-                    <div class="logo-upload-section">
-                      <div class="logo-placeholder" (click)="isEditing && triggerFileUpload()">
-                        <img *ngIf="logoPreview || entity.logoUrl" [src]="logoPreview || entity.logoUrl || ''" alt="Logo preview" class="logo-preview" />
-                        <span *ngIf="!logoPreview && !entity.logoUrl" class="logo-placeholder-text">No logo</span>
-                      </div>
-                      <button 
-                        type="button" 
-                        class="logo-upload-btn" 
-                        (click)="isEditing && triggerFileUpload()" 
-                        *ngIf="isEditing"
-                        aria-label="Upload logo"
-                      >
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          <path d="M7 10L12 5L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                          <path d="M12 5V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                      </button>
-                      <input
-                        type="file"
-                        #fileInput
-                        (change)="onLogoFileSelect($event)"
-                        accept="image/*"
-                        style="display: none;"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Right Column: Contact Information -->
-            <div class="settings-column">
-              <div class="settings-card">
-                <div class="card-header">
-                  <h3 class="card-title">Contact Information</h3>
-                  <p class="card-subtitle">Contact details and communication preferences</p>
-                </div>
-                <div class="card-body">
-                  <div class="form-group">
-                    <label>Contact Email</label>
-                    <input 
-                      type="email" 
-                      class="form-input" 
-                      [(ngModel)]="editForm.email" 
-                      [disabled]="!isEditing"
-                      placeholder="contact@institution.com" 
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Contact Phone</label>
-                    <input 
-                      type="tel" 
-                      class="form-input" 
-                      [(ngModel)]="editForm.phone" 
-                      [disabled]="!isEditing"
-                      placeholder="+1 234 567 8900" 
-                    />
-                  </div>
-                  <div class="form-group">
-                    <label>Description</label>
-                    <textarea 
-                      class="form-input textarea" 
-                      [(ngModel)]="editForm.description" 
-                      [disabled]="!isEditing"
-                      placeholder="Brief description of the institution"
-                    ></textarea>
-                  </div>
-                  <div class="form-group">
-                    <label>Primary Color</label>
-                    <input 
-                      type="color" 
-                      class="form-input color-input" 
-                      [(ngModel)]="editForm.primaryColor" 
-                      [disabled]="!isEditing"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Save/Cancel Buttons -->
-          <div class="settings-actions" *ngIf="isEditing">
-            <button class="btn-secondary" (click)="cancelEdit()">Cancel</button>
-            <button class="btn-primary" (click)="saveChanges()">Save Changes</button>
-          </div>
-        </div>
-      </main>
-
-      <!-- Approval/Rejection Modal -->
-      <div class="modal-overlay" *ngIf="showActionModal" (click)="closeActionModal()">
-        <div class="modal-content" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ actionModalTitle }}</h2>
-            <button class="close-btn" (click)="closeActionModal()">×</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Remark (Optional)</label>
-              <textarea class="form-input" [(ngModel)]="actionRemark" rows="4" placeholder="Enter any remarks..."></textarea>
-            </div>
-            <div *ngIf="currentAction === 'approve' && admissionMainTab === 'student'">
-              <div class="form-group">
-                <label>Course *</label>
-                <select class="form-input" [(ngModel)]="actionModalCourseId" (change)="onActionModalCourseChange()">
-                  <option [value]="null">Select a course</option>
-                  <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-                </select>
-              </div>
-              <div class="form-group" *ngIf="actionModalCourseId">
-                <label>Class / Semester *</label>
-                <select class="form-input" [(ngModel)]="actionModalClassId" (ngModelChange)="onActionModalClassIdChange($event)" style="appearance: auto; -webkit-appearance: menulist; -moz-appearance: menulist;" [attr.data-class-id]="actionModalClassId">
-                  <option [value]="null">Select a class/semester</option>
-                  <option *ngFor="let classItem of actionModalClasses" [value]="classItem.id">{{ classItem.name }}</option>
-                </select>
-                <div *ngIf="actionModalClasses.length === 0 && actionModalCourseId" style="color: #ef4444; font-size: 12px; margin-top: 4px;">
-                  ⚠️ No classes/semesters found for this course. Please create classes first.
-                </div>
-                <div *ngIf="actionModalClasses.length > 0" style="color: #10b981; font-size: 12px; margin-top: 4px;">
-                  ✓ {{ actionModalClasses.length }} class(es) available
-                </div>
-              </div>
-              <div class="form-group" *ngIf="actionModalClassId">
-                <label>Class Section *</label>
-                <select class="form-input" [(ngModel)]="actionModalSectionId" (change)="onActionModalSectionChange()" style="appearance: auto; -webkit-appearance: menulist; -moz-appearance: menulist;">
-                  <option [value]="null" disabled selected>-- Select Section (A, B, C, etc.) --</option>
-                  <option *ngFor="let section of actionModalSections" [value]="section.id">
-                    {{ section.name }}
-                    <span *ngIf="section.capacity"> ({{ getSectionStudentCountForAction(section.id!) || 0 }}/{{ section.capacity }}</span>
-                    <span *ngIf="section.capacity && getRemainingCapacityForAction(section) >= 0">, Remaining: {{ getRemainingCapacityForAction(section) }})</span>
-                    <span *ngIf="section.capacity && getRemainingCapacityForAction(section) < 0">, FULL)</span>
-                    <span *ngIf="!section.capacity"> (Unlimited)</span>
-                  </option>
-                </select>
-                <div *ngIf="actionModalSections.length === 0 && actionModalClassId" style="color: #ef4444; font-size: 12px; margin-top: 4px;">
-                  ⚠️ No sections found for this class. Please create sections first in "My Subjects" → "Sections" tab.
-                  <br><small style="color: var(--text-gray);">Debug: actionModalClassId={{ actionModalClassId }}, sections count={{ actionModalSections.length }}</small>
-                </div>
-                <div *ngIf="actionModalSections.length > 0" style="color: #10b981; font-size: 12px; margin-top: 4px;">
-                  ✓ {{ actionModalSections.length }} section(s) available: {{ getActionModalSectionsNames() }}
-                </div>
-              </div>
-              <div class="form-group" *ngIf="actionModalSectionId">
-                <label>Roll Number *</label>
-                <input type="text" class="form-input" [(ngModel)]="rollNumber" [readonly]="true" placeholder="Auto-generated roll number" />
-                <small class="form-hint" *ngIf="rollNumber" style="color: #10b981; font-size: 12px; margin-top: 4px; display: block;">
-                  ✓ Roll number generated: <strong>{{ rollNumber }}</strong>
-                </small>
-                <small class="form-hint" *ngIf="!rollNumber && actionModalSectionId" style="color: #f59e0b; font-size: 12px; margin-top: 4px; display: block;">
-                  ⏳ Generating roll number...
-                </small>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="closeActionModal()">Cancel</button>
-            <button class="btn-primary" (click)="confirmAdmissionAction()">Confirm</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section Students Modal -->
-      <div class="modal-overlay" *ngIf="showSectionStudentsModal" (click)="closeSectionStudentsModal()">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>Students in Section {{ selectedSectionForView?.name }}</h2>
-            <button class="close-btn" (click)="closeSectionStudentsModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div *ngIf="selectedSectionForView" style="margin-bottom: 16px; padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px;">
-              <div style="display: flex; gap: 24px; flex-wrap: wrap;">
-                <div>
-                  <span style="color: var(--text-gray); font-size: 12px;">Capacity:</span>
-                  <span style="font-weight: 700; margin-left: 4px;">{{ selectedSectionForView.capacity || 'Unlimited' }} students</span>
-                </div>
-                <div>
-                  <span style="color: var(--text-gray); font-size: 12px;">Current:</span>
-                  <span style="font-weight: 700; margin-left: 4px;">{{ sectionStudents.length }} students</span>
-                </div>
-                <div *ngIf="selectedSectionForView.capacity">
-                  <span style="color: var(--text-gray); font-size: 12px;">Remaining:</span>
-                  <span style="font-weight: 700; margin-left: 4px; color: {{ getRemainingCapacity(selectedSectionForView) >= 0 ? 'var(--accent-green)' : '#ef4444' }}">
-                    {{ getRemainingCapacity(selectedSectionForView) }} students
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="isLoadingSectionStudents" class="loading">Loading students...</div>
-            <div *ngIf="!isLoadingSectionStudents && sectionStudents.length === 0" class="empty-state">
-              <p>No students enrolled in this section yet.</p>
-            </div>
-            <div *ngIf="!isLoadingSectionStudents && sectionStudents.length > 0" class="students-list">
-              <div class="student-item" *ngFor="let student of sectionStudents" style="padding: 12px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-gray); border-radius: 8px; margin-bottom: 8px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                  <div>
-                    <div style="font-weight: 700; margin-bottom: 4px;">{{ student.firstName }} {{ student.lastName }}</div>
-                    <div style="color: var(--text-gray); font-size: 13px;">
-                      Roll: {{ student.rollNumber || 'N/A' }} • Email: {{ student.email || 'N/A' }}
-                    </div>
-                  </div>
-                  <span class="status-badge status-active" *ngIf="student.studentStatus === 'active'">Active</span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="closeSectionStudentsModal()">Close</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Teacher Modal -->
-      <div class="modal-overlay" *ngIf="showTeacherModal" (click)="closeTeacherModal()">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isEditingTeacher ? 'Edit Teacher' : 'Teacher Details' }}</h2>
-            <button class="close-btn" (click)="closeTeacherModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div *ngIf="!isEditingTeacher && selectedTeacher" class="student-view">
-              <div class="student-profile-header">
-                <div class="student-avatar-large">
-                  <img *ngIf="selectedTeacher.profileImage" [src]="selectedTeacher.profileImage" />
-                  <span *ngIf="!selectedTeacher.profileImage">{{ (selectedTeacher.firstName && selectedTeacher.firstName.charAt(0)) || 'T' }}{{ (selectedTeacher.lastName && selectedTeacher.lastName.charAt(0)) || '' }}</span>
-                </div>
-                <div>
-                  <h3>{{ selectedTeacher.firstName }} {{ selectedTeacher.lastName }}</h3>
-                  <p>{{ selectedTeacher.email }}</p>
-                  <p *ngIf="selectedTeacher.employeeId">Employee ID: {{ selectedTeacher.employeeId }}</p>
-                </div>
-              </div>
-              <div class="student-details-grid">
-                <div class="detail-item">
-                  <span class="detail-label">Qualification</span>
-                  <span class="detail-value">{{ selectedTeacher.qualification || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Specialization</span>
-                  <span class="detail-value">{{ selectedTeacher.specialization || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Status</span>
-                  <span class="detail-value">{{ selectedTeacher.status || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Phone</span>
-                  <span class="detail-value">{{ selectedTeacher.phone || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Gender</span>
-                  <span class="detail-value">{{ selectedTeacher.gender || 'N/A' }}</span>
-                </div>
-                <div class="detail-item full-width">
-                  <span class="detail-label">Address</span>
-                  <span class="detail-value">{{ selectedTeacher.address || 'N/A' }}</span>
-                </div>
-                <div class="detail-item full-width" *ngIf="selectedTeacher.bio">
-                  <span class="detail-label">Bio</span>
-                  <span class="detail-value">{{ selectedTeacher.bio }}</span>
-                </div>
-              </div>
-              
-              <!-- Documents Section -->
-              <div class="documents-view-section" *ngIf="selectedTeacherAdmissionForView">
-                <h4 class="documents-title">Documents</h4>
-                <div class="documents-grid-view">
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmissionForView.photo">
-                    <label>Photo</label>
-                    <div class="doc-preview-container">
-                      <img [src]="selectedTeacherAdmissionForView.photo" class="doc-preview-large" />
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmissionForView.idProof">
-                    <label>ID Proof</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedTeacherAdmissionForView.idProof && selectedTeacherAdmissionForView.idProof.startsWith('data:image')" [src]="selectedTeacherAdmissionForView.idProof" class="doc-preview-large" />
-                      <a *ngIf="selectedTeacherAdmissionForView.idProof && !selectedTeacherAdmissionForView.idProof.startsWith('data:image')" [href]="selectedTeacherAdmissionForView.idProof" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmissionForView.degreeCertificate">
-                    <label>Degree Certificate</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedTeacherAdmissionForView.degreeCertificate && selectedTeacherAdmissionForView.degreeCertificate.startsWith('data:image')" [src]="selectedTeacherAdmissionForView.degreeCertificate" class="doc-preview-large" />
-                      <a *ngIf="selectedTeacherAdmissionForView.degreeCertificate && !selectedTeacherAdmissionForView.degreeCertificate.startsWith('data:image')" [href]="selectedTeacherAdmissionForView.degreeCertificate" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmissionForView.resume">
-                    <label>Resume</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedTeacherAdmissionForView.resume && selectedTeacherAdmissionForView.resume.startsWith('data:image')" [src]="selectedTeacherAdmissionForView.resume" class="doc-preview-large" />
-                      <a *ngIf="selectedTeacherAdmissionForView.resume && !selectedTeacherAdmissionForView.resume.startsWith('data:image')" [href]="selectedTeacherAdmissionForView.resume" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="isEditingTeacher" class="student-edit-form">
-              <div class="form-group">
-                <label>Employee ID</label>
-                <input type="text" class="form-input" [(ngModel)]="teacherEditForm.employeeId" />
-              </div>
-              <div class="form-group">
-                <label>Qualification</label>
-                <input type="text" class="form-input" [(ngModel)]="teacherEditForm.qualification" />
-              </div>
-              <div class="form-group">
-                <label>Specialization</label>
-                <input type="text" class="form-input" [(ngModel)]="teacherEditForm.specialization" />
-              </div>
-              <div class="form-group">
-                <label>First Name</label>
-                <input type="text" class="form-input" [(ngModel)]="teacherEditForm.firstName" />
-              </div>
-              <div class="form-group">
-                <label>Last Name</label>
-                <input type="text" class="form-input" [(ngModel)]="teacherEditForm.lastName" />
-              </div>
-              <div class="form-group">
-                <label>Phone</label>
-                <input type="tel" class="form-input" [(ngModel)]="teacherEditForm.phone" />
-              </div>
-              <div class="form-group">
-                <label>Gender</label>
-                <select class="form-input" [(ngModel)]="teacherEditForm.gender">
-                  <option value="">Select</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <textarea class="form-input" [(ngModel)]="teacherEditForm.address" rows="3"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Bio</label>
-                <textarea class="form-input" [(ngModel)]="teacherEditForm.bio" rows="3"></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer" *ngIf="isEditingTeacher">
-            <button class="btn-secondary" (click)="closeTeacherModal()">Cancel</button>
-            <button class="btn-primary" (click)="saveTeacherChanges()">Save Changes</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Teacher Admission Approval Modal -->
-      <div class="modal-overlay" *ngIf="showTeacherAdmissionModal || isApprovingTeacherAdmission" (click)="closeTeacherAdmissionModal()">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isApprovingTeacherAdmission ? 'Approve Teacher Admission' : 'Teacher Admission Details' }}</h2>
-            <button class="close-btn" (click)="closeTeacherAdmissionModal()">&times;</button>
-          </div>
-          <div class="modal-body" *ngIf="selectedTeacherAdmission">
-            <div *ngIf="!isApprovingTeacherAdmission" class="student-view">
-              <div class="student-profile-header">
-                <div class="student-avatar-large">
-                  <img *ngIf="selectedTeacherAdmission.photo" [src]="selectedTeacherAdmission.photo" />
-                  <span *ngIf="!selectedTeacherAdmission.photo">{{ (selectedTeacherAdmission.firstName && selectedTeacherAdmission.firstName.charAt(0)) || 'T' }}{{ (selectedTeacherAdmission.lastName && selectedTeacherAdmission.lastName.charAt(0)) || '' }}</span>
-                </div>
-                <div>
-                  <h3>{{ selectedTeacherAdmission.firstName }} {{ selectedTeacherAdmission.lastName }}</h3>
-                  <p>{{ selectedTeacherAdmission.email }}</p>
-                  <p>{{ selectedTeacherAdmission.phone || 'N/A' }}</p>
-                </div>
-              </div>
-              <div class="student-details-grid">
-                <div class="detail-item">
-                  <span class="detail-label">Qualification</span>
-                  <span class="detail-value">{{ selectedTeacherAdmission.qualification || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Experience</span>
-                  <span class="detail-value">{{ selectedTeacherAdmission.experience || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Status</span>
-                  <span class="status-badge" [class]="'status-' + selectedTeacherAdmission.status">
-                    {{ selectedTeacherAdmission.status | titlecase }}
-                  </span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Submitted At</span>
-                  <span class="detail-value">{{ formatAdmissionDate(selectedTeacherAdmission.submittedAt) }}</span>
-                </div>
-              </div>
-              
-              <!-- Documents Section -->
-              <div class="documents-view-section">
-                <h4 class="documents-title">Documents</h4>
-                <div class="documents-grid-view">
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmission.photo">
-                    <label>Photo</label>
-                    <div class="doc-preview-container">
-                      <img [src]="selectedTeacherAdmission.photo" class="doc-preview-large" />
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmission.idProof">
-                    <label>ID Proof</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedTeacherAdmission.idProof && selectedTeacherAdmission.idProof.startsWith('data:image')" [src]="selectedTeacherAdmission.idProof" class="doc-preview-large" />
-                      <a *ngIf="selectedTeacherAdmission.idProof && !selectedTeacherAdmission.idProof.startsWith('data:image')" [href]="selectedTeacherAdmission.idProof" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmission.degreeCertificate">
-                    <label>Degree Certificate</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedTeacherAdmission.degreeCertificate && selectedTeacherAdmission.degreeCertificate.startsWith('data:image')" [src]="selectedTeacherAdmission.degreeCertificate" class="doc-preview-large" />
-                      <a *ngIf="selectedTeacherAdmission.degreeCertificate && !selectedTeacherAdmission.degreeCertificate.startsWith('data:image')" [href]="selectedTeacherAdmission.degreeCertificate" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedTeacherAdmission.resume">
-                    <label>Resume</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedTeacherAdmission.resume && selectedTeacherAdmission.resume.startsWith('data:image')" [src]="selectedTeacherAdmission.resume" class="doc-preview-large" />
-                      <a *ngIf="selectedTeacherAdmission.resume && !selectedTeacherAdmission.resume.startsWith('data:image')" [href]="selectedTeacherAdmission.resume" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="isApprovingTeacherAdmission" class="student-edit-form">
-              <div class="form-group">
-                <label>Subjects (Optional)</label>
-                <input type="text" class="form-input" [(ngModel)]="approvalSubjects" placeholder="Enter subjects (comma-separated)" />
-              </div>
-              <div class="form-group">
-                <label>Assigned Classes (Optional)</label>
-                <input type="text" class="form-input" [(ngModel)]="approvalAssignedClasses" placeholder="Enter assigned classes" />
-              </div>
-              <div class="form-group">
-                <label>Remark (Optional)</label>
-                <textarea class="form-input" [(ngModel)]="approvalTeacherRemark" rows="3" placeholder="Add any remarks"></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer" *ngIf="isApprovingTeacherAdmission">
-            <button class="btn-secondary" (click)="closeTeacherAdmissionModal()">Cancel</button>
-            <button class="btn-primary" (click)="submitTeacherAdmissionApproval()">Approve & Create Account</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Student Admission Approval Modal -->
-      <div class="modal-overlay" *ngIf="showAdmissionModal || isApprovingAdmission" (click)="closeAdmissionModal()">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isApprovingAdmission ? 'Approve Student Admission' : 'Student Admission Details' }}</h2>
-            <button class="close-btn" (click)="closeAdmissionModal()">&times;</button>
-          </div>
-          <div class="modal-body" *ngIf="selectedAdmission">
-            <div *ngIf="!isApprovingAdmission" class="student-view">
-              <div class="student-profile-header">
-                <div class="student-avatar-large">
-                  <img *ngIf="selectedAdmission.photo" [src]="selectedAdmission.photo" />
-                  <span *ngIf="!selectedAdmission.photo">{{ (selectedAdmission.firstName && selectedAdmission.firstName.charAt(0)) || 'S' }}{{ (selectedAdmission.lastName && selectedAdmission.lastName.charAt(0)) || '' }}</span>
-                </div>
-                <div>
-                  <h3>{{ selectedAdmission.firstName }} {{ selectedAdmission.lastName }}</h3>
-                  <p>{{ selectedAdmission.email }}</p>
-                  <p>{{ selectedAdmission.phone || 'N/A' }}</p>
-                </div>
-              </div>
-              <div class="student-details-grid">
-                <div class="detail-item">
-                  <span class="detail-label">Course *</span>
-                  <select class="form-input" [(ngModel)]="viewCourseId" (change)="onViewCourseChange()" style="width: 100%; margin-top: 4px;">
-                    <option [value]="null" disabled>Select Course</option>
-                    <option *ngFor="let course of viewCourses" [value]="course.id">{{ course.name }}</option>
-                  </select>
-                  <div *ngIf="!viewCourses || viewCourses.length === 0" style="color: #ef4444; font-size: 12px; margin-top: 4px;">No courses available</div>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Academic Year</span>
-                  <span class="detail-value">{{ selectedAdmission.academicYear || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Status</span>
-                  <span class="status-badge" [class]="'status-' + selectedAdmission.status">
-                    {{ selectedAdmission.status | titlecase }}
-                  </span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Submitted At</span>
-                  <span class="detail-value">{{ formatAdmissionDate(selectedAdmission.submittedAt) }}</span>
-                </div>
-                <div class="detail-item full-width">
-                  <span class="detail-label">Address</span>
-                  <span class="detail-value">{{ selectedAdmission.address || 'N/A' }}</span>
-                </div>
-                <div class="detail-item full-width">
-                  <span class="detail-label">Previous Qualification</span>
-                  <span class="detail-value">{{ selectedAdmission.previousQualification || 'N/A' }}</span>
-                </div>
-              </div>
-              
-              <!-- Documents Section -->
-              <div class="documents-view-section">
-                <h4 class="documents-title">Documents</h4>
-                <div class="documents-grid-view">
-                  <div class="doc-view-item" *ngIf="selectedAdmission.photo">
-                    <label>Photo</label>
-                    <div class="doc-preview-container">
-                      <img [src]="selectedAdmission.photo" class="doc-preview-large" />
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedAdmission.idProof">
-                    <label>ID Proof</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedAdmission.idProof.startsWith('data:image')" [src]="selectedAdmission.idProof" class="doc-preview-large" />
-                      <a *ngIf="!selectedAdmission.idProof.startsWith('data:image')" [href]="selectedAdmission.idProof" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedAdmission.marksheet">
-                    <label>Marksheet</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedAdmission.marksheet.startsWith('data:image')" [src]="selectedAdmission.marksheet" class="doc-preview-large" />
-                      <a *ngIf="!selectedAdmission.marksheet.startsWith('data:image')" [href]="selectedAdmission.marksheet" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedAdmission.tcLc">
-                    <label>TC / LC</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedAdmission.tcLc.startsWith('data:image')" [src]="selectedAdmission.tcLc" class="doc-preview-large" />
-                      <a *ngIf="!selectedAdmission.tcLc.startsWith('data:image')" [href]="selectedAdmission.tcLc" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="isApprovingAdmission" class="student-edit-form">
-              <div class="form-group">
-                <label>Course *</label>
-                <select class="form-input" [(ngModel)]="approvalCourseId" (change)="onApprovalCourseChange()">
-                  <option [value]="null">Select a course</option>
-                  <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-                </select>
-              </div>
-              <div class="form-group" *ngIf="approvalCourseId">
-                <label>Class / Semester *</label>
-                <select class="form-input" [(ngModel)]="approvalClassId" (change)="onApprovalClassChange()">
-                  <option [value]="null">Select a class/semester</option>
-                  <option *ngFor="let classItem of approvalClasses" [value]="classItem.id">{{ classItem.name }}</option>
-                </select>
-              </div>
-              <div class="form-group" *ngIf="approvalClassId">
-                <label>Class Section *</label>
-                <select class="form-input" [(ngModel)]="approvalSectionId" (change)="onApprovalSectionChange()" style="appearance: auto; -webkit-appearance: menulist; -moz-appearance: menulist;">
-                  <option [value]="null" disabled>-- Select Section (A, B, C, etc.) --</option>
-                  <option *ngFor="let section of approvalSections" [value]="section.id">{{ section.name }} (Capacity: {{ section.capacity || 0 }} students)</option>
-                </select>
-                <small class="form-hint" *ngIf="approvalSectionId && approvalSections.length > 0" style="color: #10b981; font-size: 12px; margin-top: 4px; display: block;">
-                  ✓ Selected: <strong>{{ getSectionName(approvalSectionId) }}</strong> | Capacity: {{ getSectionCapacity(approvalSectionId) }} students
-                </small>
-                <div *ngIf="approvalSections.length === 0 && approvalClassId" style="color: #ef4444; font-size: 12px; margin-top: 4px;">
-                  ⚠️ No sections found for this class. Please create sections (A, B, C, etc.) first in "My Subjects" → "Sections" tab.
-                </div>
-                <div *ngIf="approvalSections.length > 0" style="color: #10b981; font-size: 12px; margin-top: 4px;">
-                  ✓ {{ approvalSections.length }} section(s) available: {{ getApprovalSectionsNames() }}
-                </div>
-              </div>
-              <div class="form-group" *ngIf="approvalSectionId">
-                <label>Roll Number *</label>
-                <input type="text" class="form-input" [(ngModel)]="approvalRollNumber" placeholder="Auto-generated roll number" [readonly]="true" />
-                <small class="form-hint">Format: STUD{{ currentYear }}{{ getCourseNameForRoll(approvalCourseId) }}01</small>
-              </div>
-              <div class="form-group">
-                <label>Remark (Optional)</label>
-                <textarea class="form-input" [(ngModel)]="approvalRemark" rows="3" placeholder="Add any remarks"></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer" *ngIf="isApprovingAdmission">
-            <button class="btn-secondary" (click)="closeAdmissionModal()">Cancel</button>
-            <button class="btn-primary" (click)="submitAdmissionApproval()">Approve & Create Account</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Subject Assignment Modal -->
-      <div class="modal-overlay" *ngIf="showTeacherSubjectModal" (click)="closeSubjectModal()">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <div>
-              <h2 class="modal-title">Assign Subjects</h2>
-              <p class="modal-subtitle">{{ selectedTeacherForSubjects?.firstName }} {{ selectedTeacherForSubjects?.lastName }}</p>
-            </div>
-            <button class="close-btn" (click)="closeSubjectModal()" aria-label="Close">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              </svg>
-            </button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Subjects *</label>
-              <input 
-                type="text" 
-                class="form-input" 
-                [(ngModel)]="teacherSubjectsInput" 
-                placeholder="Enter subjects (comma-separated, e.g., Mathematics, Physics, Chemistry)"
-              />
-              <p class="form-hint">Separate multiple subjects with commas</p>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="closeSubjectModal()">Cancel</button>
-            <button class="btn-primary" (click)="saveTeacherSubjects()">Save Subjects</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Student Modal -->
-      <div class="modal-overlay" *ngIf="showStudentModal" (click)="closeStudentModal()">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isEditingStudent ? 'Edit Student' : 'Student Details' }}</h2>
-            <button class="close-btn" (click)="closeStudentModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div *ngIf="!isEditingStudent && selectedStudent" class="student-view">
-              <div class="student-profile-header">
-                <div class="student-avatar-large">
-                  <img *ngIf="selectedStudent.profileImage" [src]="selectedStudent.profileImage" />
-                  <span *ngIf="!selectedStudent.profileImage">{{ (selectedStudent.firstName && selectedStudent.firstName.charAt(0)) || 'S' }}{{ (selectedStudent.lastName && selectedStudent.lastName.charAt(0)) || '' }}</span>
-                </div>
-                <div>
-                  <h3>{{ selectedStudent.firstName }} {{ selectedStudent.lastName }}</h3>
-                  <p>{{ selectedStudent.email }}</p>
-                  <p *ngIf="selectedStudent.rollNumber">Roll Number: {{ selectedStudent.rollNumber }}</p>
-                </div>
-              </div>
-              <div class="student-details-grid">
-                <div class="detail-item">
-                  <span class="detail-label">Course *</span>
-                  <select class="form-input" [(ngModel)]="studentViewCourseId" (change)="onStudentViewCourseChange()" style="width: 100%; margin-top: 4px;">
-                    <option [value]="null" disabled>Select Course</option>
-                    <option *ngFor="let course of studentViewCourses" [value]="course.id">{{ course.name }}</option>
-                  </select>
-                  <div *ngIf="!studentViewCourses || studentViewCourses.length === 0" style="color: #ef4444; font-size: 12px; margin-top: 4px;">No courses available</div>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Class Sect</span>
-                  <span class="detail-value">{{ selectedStudent.classSection || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Academic Year</span>
-                  <span class="detail-value">{{ selectedStudent.academicYear || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Status</span>
-                  <span class="detail-value">{{ selectedStudent.studentStatus || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Phone</span>
-                  <span class="detail-value">{{ selectedStudent.phone || 'N/A' }}</span>
-                </div>
-                <div class="detail-item">
-                  <span class="detail-label">Gender</span>
-                  <span class="detail-value">{{ selectedStudent.gender || 'N/A' }}</span>
-                </div>
-                <div class="detail-item full-width">
-                  <span class="detail-label">Address</span>
-                  <span class="detail-value">{{ selectedStudent.address || 'N/A' }}</span>
-                </div>
-                <div class="detail-item full-width" *ngIf="selectedStudent.bio">
-                  <span class="detail-label">Bio</span>
-                  <span class="detail-value">{{ selectedStudent.bio }}</span>
-                </div>
-              </div>
-              
-              <!-- Documents Section -->
-              <div class="documents-view-section" *ngIf="selectedStudentAdmissionForView">
-                <h4 class="documents-title">Documents</h4>
-                <div class="documents-grid-view">
-                  <div class="doc-view-item" *ngIf="selectedStudentAdmissionForView.photo">
-                    <label>Photo</label>
-                    <div class="doc-preview-container">
-                      <img [src]="selectedStudentAdmissionForView.photo" class="doc-preview-large" />
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedStudentAdmissionForView.idProof">
-                    <label>ID Proof</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedStudentAdmissionForView.idProof && selectedStudentAdmissionForView.idProof.startsWith('data:image')" [src]="selectedStudentAdmissionForView.idProof" class="doc-preview-large" />
-                      <a *ngIf="selectedStudentAdmissionForView.idProof && !selectedStudentAdmissionForView.idProof.startsWith('data:image')" [href]="selectedStudentAdmissionForView.idProof" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedStudentAdmissionForView.marksheet">
-                    <label>Marksheet</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedStudentAdmissionForView.marksheet && selectedStudentAdmissionForView.marksheet.startsWith('data:image')" [src]="selectedStudentAdmissionForView.marksheet" class="doc-preview-large" />
-                      <a *ngIf="selectedStudentAdmissionForView.marksheet && !selectedStudentAdmissionForView.marksheet.startsWith('data:image')" [href]="selectedStudentAdmissionForView.marksheet" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                  <div class="doc-view-item" *ngIf="selectedStudentAdmissionForView.tcLc">
-                    <label>TC / LC</label>
-                    <div class="doc-preview-container">
-                      <img *ngIf="selectedStudentAdmissionForView.tcLc && selectedStudentAdmissionForView.tcLc.startsWith('data:image')" [src]="selectedStudentAdmissionForView.tcLc" class="doc-preview-large" />
-                      <a *ngIf="selectedStudentAdmissionForView.tcLc && !selectedStudentAdmissionForView.tcLc.startsWith('data:image')" [href]="selectedStudentAdmissionForView.tcLc" target="_blank" class="doc-link">View PDF</a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div *ngIf="isEditingStudent" class="student-edit-form">
-              <div class="form-group">
-                <label>Roll Number</label>
-                <input type="text" class="form-input" [(ngModel)]="studentEditForm.rollNumber" />
-              </div>
-              <div class="form-group">
-                <label>Class/Coe</label>
-                <input type="text" class="form-input" [(ngModel)]="studentEditForm.classCourse" />
-              </div>
-              <div class="form-group">
-                <label>Class Secti</label>
-                <input type="text" class="form-input" [(ngModel)]="studentEditForm.classSection" />
-              </div>
-              <div class="form-group">
-                <label>Academic Year</label>
-                <input type="text" class="form-input" [(ngModel)]="studentEditForm.academicYear" />
-              </div>
-              <div class="form-group">
-                <label>First Name</label>
-                <input type="text" class="form-input" [(ngModel)]="studentEditForm.firstName" />
-              </div>
-              <div class="form-group">
-                <label>Last Name</label>
-                <input type="text" class="form-input" [(ngModel)]="studentEditForm.lastName" />
-              </div>
-              <div class="form-group">
-                <label>Phone</label>
-                <input type="tel" class="form-input" [(ngModel)]="studentEditForm.phone" />
-              </div>
-              <div class="form-group">
-                <label>Gender</label>
-                <select class="form-input" [(ngModel)]="studentEditForm.gender">
-                  <option value="">Select</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Address</label>
-                <textarea class="form-input" [(ngModel)]="studentEditForm.address" rows="3"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Bio</label>
-                <textarea class="form-input" [(ngModel)]="studentEditForm.bio" rows="3"></textarea>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer" *ngIf="isEditingStudent">
-            <button class="btn-secondary" (click)="closeStudentModal()">Cancel</button>
-            <button class="btn-primary" (click)="saveStudentChanges()">Save Changes</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Confirmation Dialog -->
-      <div class="modal-overlay" *ngIf="showConfirmDialog" (click)="closeConfirmDialog()">
-        <div class="modal-content confirm-dialog" (click)="$event.stopPropagation()">
-          <div class="confirm-dialog-header">
-            <h3>Confirm Action</h3>
-          </div>
-          <div class="confirm-dialog-body">
-            <p>{{ confirmMessage }}</p>
-          </div>
-          <div class="confirm-dialog-footer">
-            <button class="btn-secondary" (click)="closeConfirmDialog()">Cancel</button>
-            <button class="btn-primary" (click)="confirmAction()">OK</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Snackbar -->
-      <div class="snackbar" [class.show]="showSnackbar" [class.success]="snackbarType === 'success'" [class.error]="snackbarType === 'error'">
-        <span>{{ snackbarMessage }}</span>
-      </div>
-
-      <!-- Course Modal -->
-      <div class="modal-overlay" *ngIf="showCourseModal" (click)="showCourseModal = false">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isEditingCourse ? 'Edit Course' : 'Create Course' }}</h2>
-            <button class="close-btn" (click)="showCourseModal = false">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Course Name *</label>
-              <input type="text" class="form-input" [(ngModel)]="courseForm.name" placeholder="e.g., BCA, BTech, 10th, 12th" />
-            </div>
-            <div class="form-group">
-              <label>Type *</label>
-              <select class="form-input" [(ngModel)]="courseForm.type">
-                <option value="">Select Type</option>
-                <option value="SCHOOL">School</option>
-                <option value="COLLEGE">College</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Duration (Years)</label>
-                <input type="number" class="form-input" [(ngModel)]="courseForm.durationYears" />
-              </div>
-              <div class="form-group">
-                <label>Duration (Semesters)</label>
-                <input type="number" class="form-input" [(ngModel)]="courseForm.durationSemesters" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select class="form-input" [(ngModel)]="courseForm.status">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="showCourseModal = false">Cancel</button>
-            <button class="btn-primary" (click)="saveCourse()">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Class Modal -->
-      <div class="modal-overlay" *ngIf="showClassModal" (click)="showClassModal = false">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isEditingClass ? 'Edit Class / Semester' : 'Create Class / Semester' }}</h2>
-            <button class="close-btn" (click)="showClassModal = false">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group" *ngIf="!isEditingClass">
-              <label>Course *</label>
-              <select class="form-input" [(ngModel)]="classForm.courseId">
-                <option [value]="null">Select a course</option>
-                <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-              </select>
-            </div>
-            <div class="form-group" *ngIf="isEditingClass">
-              <label>Course</label>
-              <input type="text" class="form-input" [value]="getCourseName(classForm.courseId)" disabled />
-            </div>
-            <div class="form-group">
-              <label>Name *</label>
-              <input type="text" class="form-input" [(ngModel)]="classForm.name" placeholder="e.g., 10th, 11th, Sem 1, Sem 2" />
-            </div>
-            <div class="form-group">
-              <label>Type *</label>
-              <select class="form-input" [(ngModel)]="classForm.type">
-                <option value="">Select Type</option>
-                <option value="CLASS">Class</option>
-                <option value="SEMESTER">Semester</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Academic Year</label>
-              <input type="text" class="form-input" [(ngModel)]="classForm.academicYear" placeholder="e.g., 2024-2025" />
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select class="form-input" [(ngModel)]="classForm.status">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="showClassModal = false">Cancel</button>
-            <button class="btn-primary" (click)="saveClass()">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Subject Modal -->
-      <div class="modal-overlay" *ngIf="showSubjectModal" (click)="showSubjectModal = false">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>{{ isEditingSubject ? 'Edit Subject' : 'Create Subject' }}</h2>
-            <button class="close-btn" (click)="showSubjectModal = false">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group" *ngIf="!isEditingSubject">
-              <label>Course *</label>
-              <select class="form-input" [(ngModel)]="subjectForm.courseId" (change)="onSubjectCourseChange()">
-                <option [value]="null">Select a course</option>
-                <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
-              </select>
-            </div>
-            <div class="form-group" *ngIf="!isEditingSubject">
-              <label>Class / Semester *</label>
-              <select class="form-input" [(ngModel)]="subjectForm.classId" [disabled]="!subjectForm.courseId" (change)="onSubjectClassChange()">
-                <option [value]="null">Select a class/semester</option>
-                <option *ngFor="let classItem of classesForSubject" [value]="classItem.id">{{ classItem.name }}</option>
-              </select>
-              <small class="form-hint" *ngIf="subjectForm.classId && sectionsForSubjectClass.length > 0">
-                📌 This subject will be available for ALL sections: {{ getSectionsNamesForSubject() }}
-              </small>
-              <small class="form-hint" *ngIf="subjectForm.classId && sectionsForSubjectClass.length === 0" style="color: #f59e0b;">
-                ⚠️ No sections created yet. Create sections for this class first.
-              </small>
-            </div>
-            <div class="form-group">
-              <label>Subject Name *</label>
-              <input type="text" class="form-input" [(ngModel)]="subjectForm.name" />
-            </div>
-            <div class="form-group">
-              <label>Subject Code *</label>
-              <input type="text" class="form-input" [(ngModel)]="subjectForm.subjectCode" />
-            </div>
-            <div class="form-group">
-              <label>Subject Type *</label>
-              <select class="form-input" [(ngModel)]="subjectForm.subjectType">
-                <option value="">Select Type</option>
-                <option value="THEORY">Theory</option>
-                <option value="PRACTICAL">Practical</option>
-                <option value="LAB">Lab</option>
-              </select>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>Max Marks</label>
-                <input type="number" class="form-input" [(ngModel)]="subjectForm.maxMarks" />
-              </div>
-              <div class="form-group">
-                <label>Credits</label>
-                <input type="number" step="0.01" class="form-input" [(ngModel)]="subjectForm.credits" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label>Status</label>
-              <select class="form-input" [(ngModel)]="subjectForm.status">
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="showSubjectModal = false" type="button">Cancel</button>
-            <button class="btn-primary" (click)="saveSubject()" type="button">Save</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Section Modal -->
-      <div class="modal-overlay" *ngIf="showSectionModal" (click)="showSectionModal = false">
-        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
-          <div class="modal-header">
-            <h2>Manage Sections - {{ selectedClassForSections?.name }}</h2>
-            <button class="close-btn" (click)="showSectionModal = false">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="section-info-box" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
-              <p style="margin: 0; color: #10b981; font-weight: 600; font-size: 14px;">
-                📌 <strong>Note:</strong> Sections created here (e.g., A, B, C, D, E) will be used for student enrollment. 
-                Subjects created for this class will automatically be available for <strong>ALL</strong> sections.
-              </p>
-            </div>
-            <div class="form-header">
-              <h3>Add New Section</h3>
-              <button class="btn-primary" (click)="sectionForm = { classId: selectedClassForSections?.id, status: 'active' }; isEditingSection = false">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-                Add Section
-              </button>
-            </div>
-            <div *ngIf="!isEditingSection && sectionForm.classId" class="form-row">
-              <div class="form-group">
-                <label>Section Name *</label>
-                <input type="text" class="form-input" [(ngModel)]="sectionForm.name" placeholder="e.g., A, B, C" />
-              </div>
-              <div class="form-group">
-                <label>Capacity</label>
-                <input type="number" class="form-input" [(ngModel)]="sectionForm.capacity" />
-              </div>
-            </div>
-            <div *ngIf="!isEditingSection && sectionForm.classId" class="form-actions">
-              <button class="btn-primary" (click)="saveSection()">Save Section</button>
-              <button class="btn-secondary" (click)="sectionForm = {}">Cancel</button>
-            </div>
-            <div *ngIf="sections.length > 0" class="sections-list">
-              <h4>Existing Sections</h4>
-              <div class="section-item" *ngFor="let section of sections">
-                <span>{{ section.name }}</span>
-                <span *ngIf="section.capacity">(Capacity: {{ section.capacity }})</span>
-                <button class="btn-edit" (click)="editSection(section)">Edit</button>
-                <button class="btn-delete" (click)="deleteSection(section.id!)" *ngIf="section.id">Delete</button>
-              </div>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button class="btn-secondary" (click)="showSectionModal = false">Close</button>
-          </div>
-        </div>
-      </div>
-
-      <app-footer></app-footer>
-    </div>
-  `,
+  imports: [CommonModule, FormsModule, RouterModule, FooterComponent, SectionModalComponent, FeeStructureModalComponent, FeeAssignmentModalComponent, AdminFeesComponent, AdminExamsComponent, AdminQuestionsComponent, AdminReportsComponent],
+  templateUrl: './admin-dashboard.component.html',
   styles: [`
-    .page { 
-      min-height: 100vh; 
+    .page {
       background: var(--primary-bg); 
       color: var(--text-white);
       display: flex;
@@ -2649,6 +382,52 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       grid-template-columns: repeat(3, 1fr);
       gap: 16px;
     }
+    .subject-content-right {
+      background: var(--card-bg);
+      border: 1px solid var(--border-gray);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .syllabus-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    .syllabus-left {
+      background: var(--card-bg);
+      border: 1px solid var(--border-gray);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .syllabus-right {
+      background: var(--card-bg);
+      border: 1px solid var(--border-gray);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-gray);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .stat-label {
+      color: var(--text-gray);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-white);
+    }
     .dashboard-card{
       background: var(--card-bg);
       border: 1px solid var(--border-gray);
@@ -2887,13 +666,13 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       border-bottom-color: var(--accent-green);
     }
 
-    .admission-sub-tabs {
+    .admission-sub-tabs, .sub-tabs {
       display: flex;
       gap: 8px;
       margin-bottom: 24px;
       flex-wrap: wrap;
     }
-    .admission-sub-tab {
+    .admission-sub-tab, .sub-tab {
       padding: 8px 16px;
       border-radius: 10px;
       border: 1px solid var(--border-gray);
@@ -2903,11 +682,11 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       cursor: pointer;
       transition: all 0.2s;
     }
-    .admission-sub-tab:hover {
+    .admission-sub-tab:hover, .sub-tab:hover {
       border-color: var(--accent-green);
       background: var(--card-bg);
     }
-    .admission-sub-tab.active {
+    .admission-sub-tab.active, .sub-tab.active {
       background: var(--accent-green);
       border-color: var(--accent-green);
       color: white;
@@ -3453,6 +1232,318 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       margin: 4px 0;
       font-size: 14px;
     }
+    .attendance-summary-table {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .summary-table-header {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1.5fr;
+      gap: 20px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--text-gray);
+      text-transform: uppercase;
+    }
+    .summary-table-header:has(span:nth-child(8)) {
+      grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1.5fr 1fr 1.5fr 2fr;
+    }
+    .summary-table-header:has(span:nth-child(9)) {
+      grid-template-columns: 2fr 1fr 1fr 1.2fr 1.5fr 1.5fr 1.8fr 1.2fr 2.5fr;
+    }
+    .notices-table {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .notices-table-header {
+      display: grid;
+      grid-template-columns: 2.5fr 1fr 1.2fr 1.5fr 1.2fr 2fr;
+      gap: 20px;
+      padding: 14px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--text-gray);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .notices-table-header:has(span:nth-child(7)) {
+      grid-template-columns: 1.2fr 1fr 1.2fr 1.5fr 1.8fr 1.8fr 1.5fr;
+    }
+    .notices-table-row {
+      display: grid;
+      grid-template-columns: 2.5fr 1fr 1.2fr 1.5fr 1.2fr 2fr;
+      gap: 20px;
+      padding: 18px 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    .notices-table-row:has(span:nth-child(7)) {
+      grid-template-columns: 1.2fr 1fr 1.2fr 1.5fr 1.8fr 1.8fr 1.5fr;
+    }
+    .notices-table-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--accent-green);
+      transform: translateY(-1px);
+    }
+    .teacher-announcements-table {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .teacher-announcements-header {
+      display: grid;
+      grid-template-columns: 3fr 1.5fr 1.5fr 1.2fr 1.8fr 2.5fr;
+      gap: 24px;
+      padding: 16px 24px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--text-gray);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .teacher-announcements-row {
+      display: grid;
+      grid-template-columns: 3fr 1.5fr 1.5fr 1.2fr 1.8fr 2.5fr;
+      gap: 24px;
+      padding: 20px 24px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    .teacher-announcements-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--accent-green);
+      transform: translateY(-1px);
+    }
+    .announcement-title-cell {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .title-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .title-main strong {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+    .teacher-name-badge {
+      font-size: 11px;
+      padding: 4px 8px;
+      background: rgba(59, 130, 246, 0.15);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 4px;
+      color: #60a5fa;
+      font-weight: 700;
+    }
+    .title-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .attachment-link {
+      font-size: 12px;
+      color: #10b981;
+      text-decoration: none;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+    }
+    .attachment-link:hover {
+      color: #34d399;
+      text-decoration: underline;
+    }
+    .meta-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .hidden-badge {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+    }
+    .remark-badge {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+    }
+    .announcement-subject-cell,
+    .announcement-type-cell,
+    .announcement-date-cell {
+      font-size: 14px;
+      color: var(--text-white);
+      font-weight: 500;
+    }
+    .announcement-status-cell {
+      display: flex;
+      align-items: center;
+    }
+    .announcement-actions-cell {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .notice-title {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .notice-title strong {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+    .notice-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .notice-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+    .notice-actions button {
+      padding: 8px 16px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      border: 1px solid var(--border-gray);
+      background: var(--secondary-bg);
+      color: var(--text-white);
+    }
+    .notice-actions .btn-edit {
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.25);
+      color: #f59e0b;
+    }
+    .notice-actions .btn-edit:hover {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(245, 158, 11, 0.4);
+      transform: translateY(-1px);
+    }
+    .notice-actions .btn-secondary {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.25);
+      color: #3b82f6;
+    }
+    .notice-actions .btn-secondary:hover {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgba(59, 130, 246, 0.4);
+      transform: translateY(-1px);
+    }
+    .notice-actions .btn-delete {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.25);
+      color: #ef4444;
+    }
+    .notice-actions .btn-delete:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.4);
+      transform: translateY(-1px);
+    }
+    .study-material-header {
+      grid-template-columns: 1.2fr 2.5fr 1.8fr 1.8fr 2fr 2fr 2.5fr !important;
+      gap: 24px !important;
+      padding: 14px 20px !important;
+    }
+    .summary-table-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1.5fr;
+      gap: 20px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      align-items: center;
+      transition: all 0.2s;
+    }
+    .summary-table-row:has(span:nth-child(8)) {
+      grid-template-columns: 2fr 1.5fr 1fr 1.5fr 1.5fr 1fr 1.5fr 2fr;
+    }
+    .summary-table-row:has(span:nth-child(9)) {
+      grid-template-columns: 2fr 1fr 1fr 1.2fr 1.5fr 1.5fr 1.8fr 1.2fr 2.5fr;
+    }
+    .study-material-row {
+      grid-template-columns: 1.2fr 2.5fr 1.8fr 1.8fr 2fr 2fr 2.5fr !important;
+      gap: 24px !important;
+      padding: 18px 20px !important;
+    }
+    .study-material-row span {
+      font-size: 14px;
+      line-height: 1.6;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    .study-material-header span {
+      font-size: 13px;
+      letter-spacing: 0.5px;
+    }
+    .summary-table-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--accent-green);
+    }
+    .summary-table-row span {
+      font-size: 14px;
+      color: var(--text-white);
+    }
+    .summary-name {
+      font-weight: 800;
+      font-size: 15px;
+      color: var(--text-white);
+    }
+    .summary-present {
+      color: var(--accent-green);
+      font-weight: 700;
+    }
+    .summary-total {
+      font-weight: 700;
+    }
+    .summary-percent {
+      font-size: 16px;
+      font-weight: 900;
+      display: inline-block;
+    }
+    .summary-pending {
+      color: #f59e0b;
+      font-weight: 700;
+    }
     .sections-list {
       margin-top: 20px;
     }
@@ -3541,13 +1632,24 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       color: var(--accent-green);
     }
     .status-badge.status-active {
-      background: rgba(16, 185, 129, 0.12);
-      border: 1px solid rgba(16, 185, 129, 0.25);
-      color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-green);
       padding: 4px 12px;
-      border-radius: 999px;
+      border-radius: 6px;
       font-size: 12px;
       font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-badge.status-closed {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ef4444;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
     }
     .status-badge.status-inactive {
       background: rgba(239, 68, 68, 0.12);
@@ -3795,6 +1897,7 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       .settings-content{ grid-template-columns: 1fr; }
       .entity-header-card{ flex-direction: column; gap: 16px; }
       .dashboard-content{ grid-template-columns: 1fr; }
+      .syllabus-layout{ grid-template-columns: 1fr; }
       .form-row { grid-template-columns: 1fr; }
       .doc-grid { grid-template-columns: 1fr; }
       .info-grid { grid-template-columns: 1fr; }
@@ -3838,6 +1941,187 @@ import { SubjectService, Course, ClassEntity, Section, Subject, SubjectTeacherMa
       border-color: rgba(239, 68, 68, 0.5);
       background: rgba(239, 68, 68, 0.1);
     }
+
+    /* Teacher Attendance Styles */
+    .attendance-view-toggle {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-gray);
+      padding-bottom: 12px;
+    }
+    .toggle-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: 1px solid var(--border-gray);
+      border-radius: 8px;
+      color: var(--text-gray);
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .toggle-btn:hover {
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+    .toggle-btn.active {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--accent-green);
+      color: var(--accent-green);
+    }
+    .attendance-filters, .history-filters {
+      display: flex;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .filter-group label {
+      font-size: 12px;
+      color: var(--text-gray);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .attendance-status-indicator {
+      display: flex;
+      gap: 24px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-gray);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-label {
+      font-size: 13px;
+      color: var(--text-gray);
+      font-weight: 600;
+    }
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .status-badge.completed {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--accent-green);
+    }
+    .status-badge.open {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #f59e0b;
+    }
+    .status-value {
+      font-size: 13px;
+      color: var(--text-white);
+      font-weight: 700;
+    }
+    .bulk-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-gray);
+      border-radius: 12px;
+      flex-wrap: wrap;
+    }
+    .attendance-summary {
+      display: flex;
+      gap: 20px;
+      margin-left: auto;
+      font-size: 14px;
+      color: var(--text-gray);
+    }
+    .attendance-summary strong {
+      color: var(--text-white);
+      font-weight: 800;
+    }
+    .attendance-student-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .attendance-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-gray);
+      border-radius: 12px;
+    }
+    .student-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .student-name {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-white);
+    }
+    .student-roll {
+      font-size: 13px;
+      color: var(--text-gray);
+    }
+    .attendance-options {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .attendance-btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border-gray);
+      background: var(--secondary-bg);
+      color: var(--text-white);
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .attendance-btn.present.active {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: #22c55e;
+      color: #22c55e;
+    }
+    .attendance-btn.absent.active {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    .attendance-btn.leave.active {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: #f59e0b;
+      color: #f59e0b;
+    }
+    .attendance-btn.half-day.active {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: #3b82f6;
+      color: #3b82f6;
+    }
+    .attendance-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-gray);
+    }
   `]
 })
 export class AdminDashboardComponent implements OnInit {
@@ -3848,7 +2132,7 @@ export class AdminDashboardComponent implements OnInit {
   isLoading = false;
   isEditing = false;
   logoPreview: string | null = null;
-  activeTab: 'admissions' | 'students' | 'teachers' | 'reports' | 'fees' | 'dashboard' | 'subjects' | 'assignments' | 'exam-attempts' | 'attendance' | 'notices' | 'settings' = 'dashboard';
+  activeTab: 'admissions' | 'students' | 'teachers' | 'reports' | 'fees' | 'dashboard' | 'subjects' | 'subject-list' | 'syllabus-materials' | 'assignments' | 'exam-attempts' | 'questions' | 'attendance' | 'notices' | 'teacher-announcements' | 'settings' = 'dashboard';
   
   userName = 'admin';
   userEmail = 'admin@lms.com';
@@ -3909,6 +2193,17 @@ export class AdminDashboardComponent implements OnInit {
   students: Student[] = [];
   isLoadingStudents = false;
   studentFilter: 'all' | 'active' | 'inactive' | 'pass-out' = 'all';
+  showStudentFilters = false;
+  studentSearch = {
+    name: '',
+    email: '',
+    roll: '',
+    phone: '',
+    course: '',
+    className: '',
+    section: '',
+    academicYear: ''
+  };
   showStudentModal = false;
   selectedStudent: Student | null = null;
   selectedAdmission: StudentAdmission | null = null;
@@ -3930,6 +2225,15 @@ export class AdminDashboardComponent implements OnInit {
   teachers: Teacher[] = [];
   isLoadingTeachers = false;
   teacherFilter: 'all' | 'active' | 'inactive' = 'all';
+  showTeacherFilters = false;
+  teacherSearch = {
+    name: '',
+    email: '',
+    employeeId: '',
+    phone: '',
+    qualification: '',
+    specialization: ''
+  };
   showTeacherSubjectModal = false;
   selectedTeacherForSubjects: Teacher | null = null;
   teacherSubjectsInput = '';
@@ -3947,7 +2251,7 @@ export class AdminDashboardComponent implements OnInit {
   approvalTeacherRemark = '';
 
   // My Subjects section properties
-  subjectSubTab: 'courses' | 'classes' | 'sections' | 'subjects' | 'teacher-assignment' = 'courses';
+  subjectSubTab: 'courses' | 'classes' | 'sections' | 'teacher-assignment' = 'courses';
   courses: Course[] = [];
   viewCourses: Course[] = [];
   viewCourseId: number | null = null;
@@ -3960,6 +2264,244 @@ export class AdminDashboardComponent implements OnInit {
   subjects: Subject[] = [];
   allSubjects: Subject[] = [];
   isLoadingAllSubjects: boolean = false;
+  
+  // Subject List section properties
+  subjectList: Subject[] = [];
+  isLoadingSubjectList: boolean = false;
+  subjectListClasses: ClassEntity[] = [];
+  subjectListSectionsByClass: Record<number, Section[]> = {};
+  showSubjectFilters = false;
+  subjectContentTypes: SubjectContentType[] = ['SYLLABUS', 'VIDEO', 'NOTE', 'PPT', 'REFERENCE'];
+  subjectContents: SubjectContent[] = [];
+  isLoadingSubjectContents = false;
+  showContentFilters = false;
+  contentSearch = {
+    subjectId: '',
+    type: '',
+    unit: '',
+    topic: '',
+    status: '',
+    visibleStudents: '',
+    visibleParents: ''
+  };
+  selectedSubjectForContentId: number | null = null;
+  showSubjectContentModal = false;
+  subjectContentModalMode: 'view' | 'edit' = 'view';
+  selectedSubjectContent: SubjectContent | null = null;
+  subjectContentEditForm: Partial<SubjectContent> = {};
+  assignmentOverview: AssignmentOverview | null = null;
+  adminAssignments: AssignmentSummary[] = [];
+  isLoadingAssignmentOverview = false;
+  isLoadingAdminAssignments = false;
+  showAssignmentFilters = false;
+  assignmentFilterClasses: ClassEntity[] = [];
+  assignmentFilterSections: Section[] = [];
+  assignmentFilters = {
+    courseId: '',
+    classId: '',
+    sectionId: '',
+    subjectId: '',
+    teacherId: '',
+    status: '',
+    fromDate: '',
+    toDate: ''
+  };
+  attendanceOverview: AttendanceOverview | null = null;
+  attendanceStudentReports: AttendanceStudentReport[] = [];
+  attendanceTeacherActivity: AttendanceTeacherActivity[] = [];
+  
+  // Teacher Attendance Properties
+  teacherAttendanceView: 'mark' | 'dashboard' | 'reports' = 'mark';
+  teacherAttendanceDate = new Date().toISOString().split('T')[0];
+  teacherAttendanceList: any[] = [];
+  teacherAttendanceSession: any = null;
+  teacherAttendanceData: any = null;
+  isLoadingTeacherAttendance = false;
+  isSavingTeacherAttendance = false;
+  teacherAttendanceDashboard: any = null;
+  teacherAttendanceReports: any[] = [];
+  isLoadingTeacherReports = false;
+  teacherReportFromDate: string = '';
+  teacherReportToDate: string = '';
+  attendancePolicy: AttendancePolicy | null = null;
+  attendanceCorrections: AttendanceCorrection[] = [];
+  attendanceAuditLogs: AttendanceAuditLog[] = [];
+  isLoadingAttendanceOverview = false;
+  isLoadingAttendanceReports = false;
+  isLoadingAttendanceTeachers = false;
+  isLoadingAttendancePolicy = false;
+  isLoadingAttendanceCorrections = false;
+  isLoadingAttendanceAudit = false;
+  showAttendanceFilters = false;
+  attendanceFilterClasses: ClassEntity[] = [];
+  attendanceFilterSections: Section[] = [];
+  attendanceFilters = {
+    courseId: '',
+    classId: '',
+    sectionId: '',
+    subjectId: '',
+    teacherId: '',
+    fromDate: '',
+    toDate: ''
+  };
+  noticesOverview: NoticeOverview | null = null;
+  adminNotices: any[] = [];
+  noticeAuditLogs: any[] = [];
+  isLoadingNotices = false;
+  isLoadingNoticeOverview = false;
+  isLoadingNoticeAudit = false;
+  showNoticeFilters = false;
+  noticeTypes = ['General', 'Academic', 'Exam', 'Holiday', 'Fee'];
+  noticeTargets = ['ALL', 'STUDENTS', 'TEACHERS', 'PARENTS'];
+  noticeFilters = {
+    courseId: '',
+    classId: '',
+    sectionId: '',
+    noticeType: '',
+    targetAudience: '',
+    status: '',
+    fromDate: '',
+    toDate: ''
+  };
+  noticeFilterClasses: ClassEntity[] = [];
+  noticeFilterSections: Section[] = [];
+  noticeFormClasses: ClassEntity[] = [];
+  noticeFormSections: Section[] = [];
+  isEditingNotice = false;
+  noticeForm: Partial<Notice> = {
+    title: '',
+    description: '',
+    noticeType: 'General',
+    targetAudience: 'ALL',
+    status: 'draft',
+    visibleToStudents: true,
+    visibleToTeachers: true,
+    visibleToParents: true,
+    sendEmail: false,
+    sendSms: false,
+    sendWhatsapp: false
+  };
+  // Teacher Announcements
+  teacherAnnouncements: any[] = [];
+  isLoadingTeacherAnnouncements = false;
+  showTeacherAnnouncementFilters = false;
+  teacherAnnouncementFilters: any = {
+    status: '',
+    type: '',
+    includeHidden: false
+  };
+  selectedTeacherAnnouncement: any = null;
+  showTeacherAnnouncementModal = false;
+  showAdminRemarkModal = false;
+  adminRemarkForm: any = {
+    remark: ''
+  };
+  
+  // Fees properties
+  feesSubTab: 'structure' | 'assignment' | 'payment' | 'dashboard' | 'receipt' | 'policy' = 'structure';
+  feeStructures: FeeStructure[] = [];
+  isLoadingFeeStructures = false;
+  showFeeStructureFilters = false;
+  feeStructureFilters: any = {
+    courseId: undefined,
+    classId: undefined,
+    sectionId: undefined,
+    feeType: '',
+    status: ''
+  };
+  feeStructureFilterClasses: ClassEntity[] = [];
+  feeStructureFilterSections: Section[] = [];
+  feeStructureForm: Partial<FeeStructure> = {};
+  isEditingFeeStructure = false;
+  showFeeStructureModal = false;
+  selectedFeeStructure: FeeStructure | null = null;
+
+  feeAssignments: FeeAssignment[] = [];
+  isLoadingFeeAssignments = false;
+  showFeeAssignmentFilters = false;
+  feeAssignmentFilters: any = {
+    studentName: '',
+    courseId: undefined,
+    classId: undefined,
+    sectionId: undefined,
+    status: ''
+  };
+  feeAssignmentFilterClasses: ClassEntity[] = [];
+  feeAssignmentFilterSections: Section[] = [];
+  feeAssignmentForm: Partial<FeeAssignment> = {};
+  isEditingFeeAssignment = false;
+  showFeeAssignmentModal = false;
+  selectedFeeAssignment: FeeAssignment | null = null;
+
+  feePayments: FeePayment[] = [];
+  isLoadingFeePayments = false;
+  showFeePaymentFilters = false;
+  feePaymentFilters: any = {
+    studentName: '',
+    paymentMode: '',
+    status: '',
+    fromDate: '',
+    toDate: ''
+  };
+  feePaymentForm: Partial<FeePayment> = {};
+  isEditingFeePayment = false;
+  showFeePaymentModal = false;
+  selectedFeePayment: FeePayment | null = null;
+
+  financialDashboard: FinancialDashboard | null = null;
+  isLoadingFinancialDashboard = false;
+  financialDashboardFilters: any = {
+    fromDate: '',
+    toDate: ''
+  };
+
+  receipts: Receipt[] = [];
+  isLoadingReceipts = false;
+  showReceiptFilters = false;
+  receiptFilters: any = {
+    studentName: '',
+    status: ''
+  };
+
+  feePolicy: FeePolicy | null = null;
+  isLoadingFeePolicy = false;
+  feePolicyForm: Partial<FeePolicy> = {};
+  isEditingFeePolicy = false;
+  showFeePolicyModal = false;
+
+  subjectContentForm: SubjectContent = {
+    entityId: 0,
+    subjectId: 0,
+    type: 'SYLLABUS',
+    title: '',
+    description: '',
+    unit: '',
+    topicName: '',
+    fileName: '',
+    fileData: '',
+    linkUrl: '',
+    visibleToStudents: true,
+    visibleToParents: false,
+    teacherEditable: true,
+    status: 'active'
+  };
+  subjectSearch = {
+    name: '',
+    code: '',
+    type: '',
+    status: '',
+    course: '',
+    className: ''
+  };
+  showSubjectStudentsModal = false;
+  selectedSubjectForView: Subject | null = null;
+  subjectStudents: Student[] = [];
+  isLoadingSubjectStudents = false;
+  subjectTeacherMappingsForSubject: SubjectTeacherMapping[] = [];
+  isLoadingSubjectTeachers = false;
+  sectionTeacherMappings: SubjectTeacherMapping[] = [];
+  isLoadingSectionTeachers = false;
+  
   sectionsForAssignment: Section[] = [];
   teacherAssignments: SubjectTeacherMapping[] = [];
   isLoadingCourses = false;
@@ -4007,7 +2549,13 @@ export class AdminDashboardComponent implements OnInit {
     private admissionService: AdmissionService,
     private studentService: StudentService,
     private teacherService: TeacherService,
-    private subjectService: SubjectService
+    private subjectService: SubjectService,
+    private subjectContentService: SubjectContentService,
+    private assignmentService: AssignmentService,
+    private attendanceService: AttendanceService,
+    private noticeService: NoticeService,
+    private announcementService: AnnouncementService,
+    private feeService: FeeService
   ) {}
 
   ngOnInit(): void {
@@ -4773,6 +3321,912 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  formatNoticeDate(date: string | undefined): string {
+    if (!date) return 'N/A';
+    try {
+      const d = new Date(date);
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  formatAuditDate(date: string | undefined): string {
+    if (!date) return 'N/A';
+    try {
+      const d = new Date(date);
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  // Teacher Announcements Methods
+  onTeacherAnnouncementsTabClick(): void {
+    this.activeTab = 'teacher-announcements';
+    this.loadTeacherAnnouncements();
+  }
+
+  loadTeacherAnnouncements(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingTeacherAnnouncements = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.announcementService.getAllAnnouncementsForAdmin(
+      entityId,
+      this.teacherAnnouncementFilters.includeHidden
+    ).subscribe({
+      next: (res: any) => {
+        let data = res && res.data && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        
+        // Apply filters
+        if (this.teacherAnnouncementFilters.status) {
+          data = data.filter((a: any) => a.status === this.teacherAnnouncementFilters.status);
+        }
+        if (this.teacherAnnouncementFilters.type) {
+          data = data.filter((a: any) => a.announcementType === this.teacherAnnouncementFilters.type);
+        }
+        
+        this.teacherAnnouncements = data || [];
+        this.isLoadingTeacherAnnouncements = false;
+      },
+      error: (err) => {
+        console.error('Error loading teacher announcements:', err);
+        this.teacherAnnouncements = [];
+        this.isLoadingTeacherAnnouncements = false;
+      }
+    });
+  }
+
+  resetTeacherAnnouncementFilters(): void {
+    this.teacherAnnouncementFilters = {
+      status: '',
+      type: '',
+      includeHidden: false
+    };
+    this.loadTeacherAnnouncements();
+  }
+
+  viewTeacherAnnouncement(announcement: any): void {
+    this.selectedTeacherAnnouncement = announcement;
+    this.showTeacherAnnouncementModal = true;
+  }
+
+  closeTeacherAnnouncementModal(): void {
+    this.showTeacherAnnouncementModal = false;
+    this.selectedTeacherAnnouncement = null;
+  }
+
+  toggleHideAnnouncement(announcement: any): void {
+    if (!announcement?.id) return;
+    const user = this.auth.getUser();
+    const adminUserId = user?.id;
+    if (!adminUserId) {
+      alert('Admin user ID not found');
+      return;
+    }
+    
+    const newHideStatus = !announcement.isHidden;
+    this.announcementService.toggleHide(announcement.id, adminUserId, newHideStatus).subscribe({
+      next: (result: any) => {
+        if (result && result.ok) {
+          this.showSnackbarMessage(
+            newHideStatus ? 'Announcement hidden successfully' : 'Announcement shown successfully',
+            'success'
+          );
+          this.loadTeacherAnnouncements();
+        } else {
+          this.showSnackbarMessage(result?.message || 'Failed to update announcement', 'error');
+        }
+      },
+      error: (err) => {
+        console.error('Error toggling hide:', err);
+        this.showSnackbarMessage('Failed to update announcement: ' + (err.error?.message || err.message), 'error');
+      }
+    });
+  }
+
+  addAdminRemark(announcement: any): void {
+    this.selectedTeacherAnnouncement = announcement;
+    this.adminRemarkForm.remark = announcement.adminRemark || '';
+    this.showAdminRemarkModal = true;
+  }
+
+  closeAdminRemarkModal(): void {
+    this.showAdminRemarkModal = false;
+    this.adminRemarkForm.remark = '';
+    this.selectedTeacherAnnouncement = null;
+  }
+
+  saveAdminRemark(): void {
+    if (!this.selectedTeacherAnnouncement?.id) return;
+    const user = this.auth.getUser();
+    const adminUserId = user?.id;
+    if (!adminUserId) {
+      alert('Admin user ID not found');
+      return;
+    }
+    
+    this.announcementService.updateAdminRemark(
+      this.selectedTeacherAnnouncement.id,
+      adminUserId,
+      this.adminRemarkForm.remark || ''
+    ).subscribe({
+      next: (result: any) => {
+        if (result && result.ok) {
+          this.showSnackbarMessage('Remark saved successfully', 'success');
+          this.closeAdminRemarkModal();
+          this.loadTeacherAnnouncements();
+        } else {
+          this.showSnackbarMessage(result?.message || 'Failed to save remark', 'error');
+        }
+      },
+      error: (err) => {
+        console.error('Error saving remark:', err);
+        this.showSnackbarMessage('Failed to save remark: ' + (err.error?.message || err.message), 'error');
+      }
+    });
+  }
+
+  downloadTeacherAnnouncementAttachment(announcement: any): void {
+    if (announcement.attachmentData) {
+      const link = document.createElement('a');
+      link.href = announcement.attachmentData;
+      link.download = announcement.attachmentName || 'attachment';
+      link.click();
+    }
+  }
+
+  formatAnnouncementDate(dateStr: string | undefined): string {
+    if (!dateStr) return 'N/A';
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'N/A';
+    }
+  }
+
+  getSubjectNameById(subjectId: number | undefined): string {
+    if (!subjectId) return 'N/A';
+    const subject = this.subjectList.find(s => s.id === subjectId);
+    return subject ? (subject.subjectCode ? `${subject.subjectCode} - ${subject.name}` : subject.name) : 'N/A';
+  }
+
+  // Fees Methods
+  onFeesTabClick(): void {
+    this.activeTab = 'fees';
+    this.feesSubTab = 'structure';
+    this.loadCourses();
+    this.loadFeeStructures();
+    this.loadFeePolicy();
+  }
+
+  loadFeeStructures(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingFeeStructures = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.feeService.getFeeStructures(
+      entityId,
+      this.feeStructureFilters.courseId,
+      this.feeStructureFilters.classId,
+      this.feeStructureFilters.sectionId,
+      this.feeStructureFilters.feeType || undefined,
+      this.feeStructureFilters.status || undefined
+    ).subscribe({
+      next: (res: any) => {
+        const data = res && res.data && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.feeStructures = data || [];
+        this.isLoadingFeeStructures = false;
+      },
+      error: (err) => {
+        console.error('Error loading fee structures:', err);
+        this.feeStructures = [];
+        this.isLoadingFeeStructures = false;
+      }
+    });
+  }
+
+  onFeeStructureCourseChange(): void {
+    // Check if modal is open (use feeStructureForm) or filter is being used (use feeStructureFilters)
+    const courseId = this.showFeeStructureModal && this.feeStructureForm.courseId 
+      ? (typeof this.feeStructureForm.courseId === 'string' ? parseInt(this.feeStructureForm.courseId) : this.feeStructureForm.courseId)
+      : (this.feeStructureFilters.courseId ? (typeof this.feeStructureFilters.courseId === 'string' ? parseInt(this.feeStructureFilters.courseId) : this.feeStructureFilters.courseId) : null);
+    
+    if (this.showFeeStructureModal) {
+      // Modal is open - update form
+      this.feeStructureForm.classId = undefined;
+      this.feeStructureForm.sectionId = undefined;
+    } else {
+      // Filter is being used
+      this.feeStructureFilters.classId = undefined;
+      this.feeStructureFilters.sectionId = undefined;
+    }
+    
+    this.feeStructureFilterClasses = [];
+    this.feeStructureFilterSections = [];
+    
+    if (courseId) {
+      this.subjectService.getClassesByCourse(courseId).subscribe({
+        next: (result) => {
+          if (result.ok && result.data) {
+            this.feeStructureFilterClasses = result.data;
+          }
+        },
+        error: () => {
+          this.feeStructureFilterClasses = [];
+        }
+      });
+    }
+  }
+
+  onFeeStructureClassChange(): void {
+    // Check if modal is open (use feeStructureForm) or filter is being used (use feeStructureFilters)
+    const classId = this.showFeeStructureModal && this.feeStructureForm.classId
+      ? (typeof this.feeStructureForm.classId === 'string' ? parseInt(this.feeStructureForm.classId) : this.feeStructureForm.classId)
+      : (this.feeStructureFilters.classId ? (typeof this.feeStructureFilters.classId === 'string' ? parseInt(this.feeStructureFilters.classId) : this.feeStructureFilters.classId) : null);
+    
+    if (this.showFeeStructureModal) {
+      // Modal is open - update form
+      this.feeStructureForm.sectionId = undefined;
+    } else {
+      // Filter is being used
+      this.feeStructureFilters.sectionId = undefined;
+    }
+    
+    this.feeStructureFilterSections = [];
+    
+    if (classId) {
+      this.subjectService.getSectionsByClass(classId).subscribe({
+        next: (result) => {
+          if (result.ok && result.data) {
+            this.feeStructureFilterSections = result.data;
+          }
+        },
+        error: () => {
+          this.feeStructureFilterSections = [];
+        }
+      });
+    }
+  }
+
+  resetFeeStructureFilters(): void {
+    this.feeStructureFilters = {
+      courseId: undefined,
+      classId: undefined,
+      sectionId: undefined,
+      feeType: '',
+      status: ''
+    };
+    this.feeStructureFilterClasses = [];
+    this.feeStructureFilterSections = [];
+    this.loadFeeStructures();
+  }
+
+  openCreateFeeStructureModal(): void {
+    this.isEditingFeeStructure = false;
+    this.feeStructureForm = {
+      entityId: typeof this.entity?.id === 'string' ? parseInt(this.entity.id) : (this.entity?.id || 0),
+      feeName: '',
+      feeType: 'TUITION',
+      amount: 0,
+      isRecurring: false,
+      status: 'active'
+    };
+    // Reset classes and sections when opening new modal
+    this.feeStructureFilterClasses = [];
+    this.feeStructureFilterSections = [];
+    this.showFeeStructureModal = true;
+  }
+
+  viewFeeStructure(structure: FeeStructure): void {
+    this.selectedFeeStructure = structure;
+    // TODO: Open view modal
+  }
+
+  editFeeStructure(structure: FeeStructure): void {
+    this.isEditingFeeStructure = true;
+    this.selectedFeeStructure = structure;
+    this.feeStructureForm = { ...structure };
+    // Load classes if courseId exists
+    if (this.feeStructureForm.courseId) {
+      const courseId = typeof this.feeStructureForm.courseId === 'string' ? parseInt(this.feeStructureForm.courseId) : this.feeStructureForm.courseId;
+      this.subjectService.getClassesByCourse(courseId).subscribe({
+        next: (result) => {
+          if (result.ok && result.data) {
+            this.feeStructureFilterClasses = result.data;
+            // Load sections if classId exists
+            if (this.feeStructureForm.classId) {
+              const classId = typeof this.feeStructureForm.classId === 'string' ? parseInt(this.feeStructureForm.classId) : this.feeStructureForm.classId;
+              this.subjectService.getSectionsByClass(classId).subscribe({
+                next: (sectionResult) => {
+                  if (sectionResult.ok && sectionResult.data) {
+                    this.feeStructureFilterSections = sectionResult.data;
+                  }
+                }
+              });
+            }
+          }
+        }
+      });
+    } else {
+      this.feeStructureFilterClasses = [];
+      this.feeStructureFilterSections = [];
+    }
+    this.showFeeStructureModal = true;
+  }
+
+  saveFeeStructure(): void {
+    if (!this.entity?.id) {
+      this.showSnackbarMessage('Entity not found', 'error');
+      return;
+    }
+
+    const user = this.auth.getUser();
+    if (!user || !user.id) {
+      this.showSnackbarMessage('User not authenticated', 'error');
+      return;
+    }
+    const userId = user.id;
+
+    if (!this.feeStructureForm.feeName || !this.feeStructureForm.feeType || !this.feeStructureForm.amount) {
+      this.showSnackbarMessage('Please fill all required fields', 'error');
+      return;
+    }
+
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    this.feeStructureForm.entityId = entityId;
+
+    if (this.isEditingFeeStructure && this.feeStructureForm.id) {
+      // Update existing
+      this.feeService.updateFeeStructure(this.feeStructureForm.id, this.feeStructureForm as FeeStructure, userId).subscribe({
+        next: (res: any) => {
+          if (res && res.ok) {
+            this.showSnackbarMessage('Fee structure updated successfully', 'success');
+            this.showFeeStructureModal = false;
+            this.loadFeeStructures();
+            this.feeStructureForm = {};
+          } else {
+            this.showSnackbarMessage(res?.message || 'Failed to update fee structure', 'error');
+          }
+        },
+        error: (err) => {
+          console.error('Error updating fee structure:', err);
+          this.showSnackbarMessage('Failed to update fee structure: ' + (err.error?.message || err.message), 'error');
+        }
+      });
+    } else {
+      // Create new
+      this.feeService.createFeeStructure(this.feeStructureForm as FeeStructure, userId).subscribe({
+        next: (res: any) => {
+          if (res && res.ok) {
+            this.showSnackbarMessage('Fee structure created successfully', 'success');
+            this.showFeeStructureModal = false;
+            this.loadFeeStructures();
+            this.feeStructureForm = {};
+          } else {
+            this.showSnackbarMessage(res?.message || 'Failed to create fee structure', 'error');
+          }
+        },
+        error: (err) => {
+          console.error('Error creating fee structure:', err);
+          this.showSnackbarMessage('Failed to create fee structure: ' + (err.error?.message || err.message), 'error');
+        }
+      });
+    }
+  }
+
+  deleteFeeStructure(structure: FeeStructure): void {
+    if (!structure.id) return;
+    this.confirmMessage = 'Delete this fee structure? This action cannot be undone.';
+    this.confirmCallback = () => {
+      this.feeService.deleteFeeStructure(structure.id!).subscribe({
+        next: (res: any) => {
+          if (res && res.ok) {
+            this.showSnackbarMessage('Fee structure deleted successfully', 'success');
+            this.loadFeeStructures();
+          } else {
+            this.showSnackbarMessage(res?.message || 'Failed to delete fee structure', 'error');
+          }
+        },
+        error: (err) => {
+          console.error('Error deleting fee structure:', err);
+          this.showSnackbarMessage('Failed to delete fee structure: ' + (err.error?.message || err.message), 'error');
+        }
+      });
+    };
+    this.showConfirmDialog = true;
+  }
+
+  loadFeeAssignments(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingFeeAssignments = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.feeService.getFeeAssignments(
+      entityId,
+      undefined, // studentId
+      this.feeAssignmentFilters.courseId,
+      this.feeAssignmentFilters.classId,
+      this.feeAssignmentFilters.sectionId,
+      this.feeAssignmentFilters.status || undefined
+    ).subscribe({
+      next: (res: any) => {
+        const data = res && res.data && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.feeAssignments = data || [];
+        this.isLoadingFeeAssignments = false;
+      },
+      error: (err) => {
+        console.error('Error loading fee assignments:', err);
+        this.feeAssignments = [];
+        this.isLoadingFeeAssignments = false;
+      }
+    });
+  }
+
+  onFeeAssignmentCourseChange(): void {
+    this.feeAssignmentFilters.classId = undefined;
+    this.feeAssignmentFilters.sectionId = undefined;
+    this.feeAssignmentFilterClasses = [];
+    this.feeAssignmentFilterSections = [];
+    
+    if (this.feeAssignmentFilters.courseId) {
+      const courseId = typeof this.feeAssignmentFilters.courseId === 'string' ? parseInt(this.feeAssignmentFilters.courseId) : this.feeAssignmentFilters.courseId;
+      this.subjectService.getClassesByCourse(courseId).subscribe({
+        next: (result) => {
+          if (result.ok && result.data) {
+            this.feeAssignmentFilterClasses = result.data;
+          }
+        }
+      });
+    }
+  }
+
+  onFeeAssignmentClassChange(): void {
+    this.feeAssignmentFilters.sectionId = undefined;
+    this.feeAssignmentFilterSections = [];
+    
+    if (this.feeAssignmentFilters.classId) {
+      const classId = typeof this.feeAssignmentFilters.classId === 'string' ? parseInt(this.feeAssignmentFilters.classId) : this.feeAssignmentFilters.classId;
+      this.subjectService.getSectionsByClass(classId).subscribe({
+        next: (result) => {
+          if (result.ok && result.data) {
+            this.feeAssignmentFilterSections = result.data;
+          }
+        }
+      });
+    }
+  }
+
+  resetFeeAssignmentFilters(): void {
+    this.feeAssignmentFilters = {
+      studentName: '',
+      courseId: undefined,
+      classId: undefined,
+      sectionId: undefined,
+      status: ''
+    };
+    this.feeAssignmentFilterClasses = [];
+    this.feeAssignmentFilterSections = [];
+    this.loadFeeAssignments();
+  }
+
+  openCreateFeeAssignmentModal(): void {
+    this.isEditingFeeAssignment = false;
+    this.feeAssignmentForm = {
+      entityId: typeof this.entity?.id === 'string' ? parseInt(this.entity.id) : (this.entity?.id || 0),
+      studentId: 0,
+      feeStructureId: 0,
+      totalAmount: 0,
+      finalAmount: 0,
+      paidAmount: 0,
+      pendingAmount: 0,
+      status: 'pending'
+    };
+    // Ensure students and fee structures are loaded
+    if (this.students.length === 0) {
+      this.loadStudents('all');
+    }
+    if (this.feeStructures.length === 0) {
+      this.loadFeeStructures();
+    }
+    this.showFeeAssignmentModal = true;
+  }
+
+  viewFeeAssignment(assignment: FeeAssignment): void {
+    this.selectedFeeAssignment = assignment;
+    // TODO: Open view modal
+  }
+
+  editFeeAssignment(assignment: FeeAssignment): void {
+    this.isEditingFeeAssignment = true;
+    this.selectedFeeAssignment = assignment;
+    this.feeAssignmentForm = { ...assignment };
+    this.showFeeAssignmentModal = true;
+  }
+
+  recordPaymentForAssignment(assignment: FeeAssignment): void {
+    this.selectedFeeAssignment = assignment;
+    this.feePaymentForm = {
+      entityId: typeof this.entity?.id === 'string' ? parseInt(this.entity.id) : (this.entity?.id || 0),
+      studentId: assignment.studentId,
+      feeAssignmentId: assignment.id || 0,
+      amount: assignment.pendingAmount || 0,
+      paymentDate: new Date().toISOString().split('T')[0],
+      paymentMode: 'CASH',
+      status: 'completed'
+    };
+    this.showFeePaymentModal = true;
+  }
+
+  onFeeAssignmentStudentChange(): void {
+    // Student selected, can load student details if needed
+  }
+
+  onFeeAssignmentStructureChange(): void {
+    // Fee structure selected, load amount
+    if (this.feeAssignmentForm.feeStructureId) {
+      const structure = this.feeStructures.find(s => s.id === this.feeAssignmentForm.feeStructureId);
+      if (structure) {
+        this.feeAssignmentForm.totalAmount = structure.amount || 0;
+        this.calculateFinalAmount();
+      }
+    }
+  }
+
+  calculateFinalAmount(): void {
+    const totalAmount = this.feeAssignmentForm.totalAmount || 0;
+    const discountAmount = this.feeAssignmentForm.discountAmount || 0;
+    const discountPercentage = this.feeAssignmentForm.discountPercentage || 0;
+    const scholarshipAmount = this.feeAssignmentForm.scholarshipAmount || 0;
+
+    // Calculate discount from percentage
+    const discountFromPercentage = totalAmount * (discountPercentage / 100);
+    const totalDiscount = discountAmount + discountFromPercentage;
+    
+    // Calculate final amount
+    this.feeAssignmentForm.finalAmount = Math.max(0, totalAmount - totalDiscount - scholarshipAmount);
+    this.feeAssignmentForm.pendingAmount = this.feeAssignmentForm.finalAmount - (this.feeAssignmentForm.paidAmount || 0);
+  }
+
+  saveFeeAssignment(): void {
+    if (!this.entity?.id) {
+      this.showSnackbarMessage('Entity not found', 'error');
+      return;
+    }
+
+    if (!this.feeAssignmentForm.studentId || this.feeAssignmentForm.studentId === 0) {
+      this.showSnackbarMessage('Please select a student', 'error');
+      return;
+    }
+
+    if (!this.feeAssignmentForm.feeStructureId || this.feeAssignmentForm.feeStructureId === 0) {
+      this.showSnackbarMessage('Please select a fee structure', 'error');
+      return;
+    }
+
+    if (!this.feeAssignmentForm.dueDate) {
+      this.showSnackbarMessage('Please select a due date', 'error');
+      return;
+    }
+
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    // Get userId from auth service or use 0 as default
+    const user = this.auth.getUser();
+    const userId = user?.id ? (typeof user.id === 'string' ? parseInt(user.id) : user.id) : 0;
+
+    if (this.isEditingFeeAssignment && this.feeAssignmentForm.id) {
+      // Update existing assignment
+      this.feeService.updateFeeAssignment(
+        this.feeAssignmentForm.id,
+        {
+          ...this.feeAssignmentForm,
+          entityId: entityId,
+          studentId: this.feeAssignmentForm.studentId,
+          feeStructureId: this.feeAssignmentForm.feeStructureId,
+          totalAmount: this.feeAssignmentForm.totalAmount || 0,
+          finalAmount: this.feeAssignmentForm.finalAmount || 0,
+          paidAmount: this.feeAssignmentForm.paidAmount || 0,
+          pendingAmount: this.feeAssignmentForm.pendingAmount || 0,
+          dueDate: this.feeAssignmentForm.dueDate,
+          discountAmount: this.feeAssignmentForm.discountAmount || 0,
+          discountPercentage: this.feeAssignmentForm.discountPercentage || 0,
+          scholarshipAmount: this.feeAssignmentForm.scholarshipAmount || 0,
+          academicYear: this.feeAssignmentForm.academicYear,
+          status: this.feeAssignmentForm.status || 'pending',
+          remarks: this.feeAssignmentForm.remarks
+        },
+        userId
+      ).subscribe({
+        next: (res: any) => {
+          if (res.ok) {
+            this.showSnackbarMessage('Fee assignment updated successfully', 'success');
+            this.showFeeAssignmentModal = false;
+            this.loadFeeAssignments();
+          } else {
+            this.showSnackbarMessage(res.message || 'Failed to update fee assignment', 'error');
+          }
+        },
+        error: (err: any) => {
+          this.showSnackbarMessage(err.error?.message || 'Error updating fee assignment', 'error');
+        }
+      });
+    } else {
+      // Create new assignment
+      this.feeService.assignFeeToStudent(
+        entityId,
+        this.feeAssignmentForm.studentId,
+        this.feeAssignmentForm.feeStructureId,
+        this.feeAssignmentForm.discountAmount,
+        this.feeAssignmentForm.discountPercentage,
+        this.feeAssignmentForm.scholarshipAmount,
+        this.feeAssignmentForm.academicYear,
+        userId
+      ).subscribe({
+        next: (res: any) => {
+          if (res.ok) {
+            this.showSnackbarMessage('Fee assigned successfully', 'success');
+            this.showFeeAssignmentModal = false;
+            this.loadFeeAssignments();
+          } else {
+            this.showSnackbarMessage(res.message || 'Failed to assign fee', 'error');
+          }
+        },
+        error: (err: any) => {
+          this.showSnackbarMessage(err.error?.message || 'Error assigning fee', 'error');
+        }
+      });
+    }
+  }
+
+  loadFeePayments(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingFeePayments = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.feeService.getPayments(
+      entityId,
+      undefined, // studentId
+      this.feePaymentFilters.status || undefined,
+      this.feePaymentFilters.paymentMode || undefined,
+      this.feePaymentFilters.fromDate || undefined,
+      this.feePaymentFilters.toDate || undefined
+    ).subscribe({
+      next: (res: any) => {
+        const data = res && res.data && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.feePayments = data || [];
+        this.isLoadingFeePayments = false;
+      },
+      error: (err) => {
+        console.error('Error loading payments:', err);
+        this.feePayments = [];
+        this.isLoadingFeePayments = false;
+      }
+    });
+  }
+
+  resetFeePaymentFilters(): void {
+    this.feePaymentFilters = {
+      studentName: '',
+      paymentMode: '',
+      status: '',
+      fromDate: '',
+      toDate: ''
+    };
+    this.loadFeePayments();
+  }
+
+  openCreatePaymentModal(): void {
+    this.isEditingFeePayment = false;
+    this.feePaymentForm = {
+      entityId: typeof this.entity?.id === 'string' ? parseInt(this.entity.id) : (this.entity?.id || 0),
+      studentId: 0,
+      feeAssignmentId: 0,
+      amount: 0,
+      paymentDate: new Date().toISOString().split('T')[0],
+      paymentMode: 'CASH',
+      status: 'completed'
+    };
+    this.showFeePaymentModal = true;
+  }
+
+  viewFeePayment(payment: FeePayment): void {
+    this.selectedFeePayment = payment;
+    // TODO: Open view modal
+  }
+
+  editFeePayment(payment: FeePayment): void {
+    this.isEditingFeePayment = true;
+    this.selectedFeePayment = payment;
+    this.feePaymentForm = { ...payment };
+    this.showFeePaymentModal = true;
+  }
+
+  downloadReceiptForPayment(payment: FeePayment): void {
+    if (!payment.id) return;
+    this.feeService.getReceiptByPaymentId(payment.id).subscribe({
+      next: (res: any) => {
+        if (res && res.data) {
+          const receipt = res.data;
+          if (receipt.receiptPdfData) {
+            const link = document.createElement('a');
+            link.href = receipt.receiptPdfData;
+            link.download = `receipt-${receipt.receiptNumber || payment.id}.pdf`;
+            link.click();
+          } else if (receipt.receiptPdfUrl) {
+            window.open(receipt.receiptPdfUrl, '_blank');
+          } else {
+            this.showSnackbarMessage('Receipt not available', 'error');
+          }
+        }
+      },
+      error: (err) => {
+        console.error('Error downloading receipt:', err);
+        this.showSnackbarMessage('Failed to download receipt', 'error');
+      }
+    });
+  }
+
+  loadFinancialDashboard(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingFinancialDashboard = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.feeService.getFinancialDashboard(
+      entityId,
+      this.financialDashboardFilters.fromDate || undefined,
+      this.financialDashboardFilters.toDate || undefined
+    ).subscribe({
+      next: (res: any) => {
+        const data = res && res.data ? res.data : res;
+        this.financialDashboard = data || null;
+        this.isLoadingFinancialDashboard = false;
+      },
+      error: (err) => {
+        console.error('Error loading financial dashboard:', err);
+        this.financialDashboard = null;
+        this.isLoadingFinancialDashboard = false;
+      }
+    });
+  }
+
+  loadReceipts(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingReceipts = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    // Load payments first to get amounts for receipts
+    if (this.feePayments.length === 0) {
+      this.loadFeePayments();
+    }
+    
+    this.feeService.getReceipts(
+      entityId,
+      undefined, // studentId
+      this.receiptFilters.status || undefined
+    ).subscribe({
+      next: (res: any) => {
+        const data = res && res.data && Array.isArray(res.data) ? res.data : (Array.isArray(res) ? res : []);
+        this.receipts = data || [];
+        this.isLoadingReceipts = false;
+      },
+      error: (err) => {
+        console.error('Error loading receipts:', err);
+        this.receipts = [];
+        this.isLoadingReceipts = false;
+      }
+    });
+  }
+
+  resetReceiptFilters(): void {
+    this.receiptFilters = {
+      studentName: '',
+      status: ''
+    };
+    this.loadReceipts();
+  }
+
+  viewReceipt(receipt: Receipt): void {
+    // TODO: Open view modal
+  }
+
+  downloadReceipt(receipt: Receipt): void {
+    if (receipt.receiptPdfData) {
+      const link = document.createElement('a');
+      link.href = receipt.receiptPdfData;
+      link.download = `receipt-${receipt.receiptNumber || receipt.id}.pdf`;
+      link.click();
+    } else if (receipt.receiptPdfUrl) {
+      window.open(receipt.receiptPdfUrl, '_blank');
+    } else {
+      this.showSnackbarMessage('Receipt PDF not available', 'error');
+    }
+  }
+
+  sendReceipt(receipt: Receipt): void {
+    if (!receipt.id) return;
+    this.feeService.sendReceipt(receipt.id, 'EMAIL').subscribe({
+      next: (res: any) => {
+        if (res && res.ok) {
+          this.showSnackbarMessage('Receipt sent successfully', 'success');
+          this.loadReceipts();
+        } else {
+          this.showSnackbarMessage(res?.message || 'Failed to send receipt', 'error');
+        }
+      },
+      error: (err) => {
+        console.error('Error sending receipt:', err);
+        this.showSnackbarMessage('Failed to send receipt: ' + (err.error?.message || err.message), 'error');
+      }
+    });
+  }
+
+  loadFeePolicy(): void {
+    if (!this.entity?.id) return;
+    this.isLoadingFeePolicy = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.feeService.getFeePolicy(entityId).subscribe({
+      next: (res: any) => {
+        const data = res && res.data ? res.data : res;
+        this.feePolicy = data || null;
+        this.isLoadingFeePolicy = false;
+      },
+      error: (err) => {
+        console.error('Error loading fee policy:', err);
+        this.feePolicy = null;
+        this.isLoadingFeePolicy = false;
+      }
+    });
+  }
+
+  openEditFeePolicyModal(): void {
+    this.isEditingFeePolicy = true;
+    this.feePolicyForm = this.feePolicy ? { ...this.feePolicy } : {
+      entityId: typeof this.entity?.id === 'string' ? parseInt(this.entity.id) : (this.entity?.id || 0),
+      lateFineType: 'PERCENTAGE',
+      lateFinePercentage: 0,
+      lateFineFixedAmount: 0,
+      lateFineGracePeriodDays: 0,
+      installmentEligibilityPercentage: 0,
+      refundAllowed: false,
+      autoAssignFees: true,
+      financialYearLocked: false
+    };
+    this.showFeePolicyModal = true;
+  }
+
+  getFeeStructureName(feeStructureId: number | undefined): string {
+    if (!feeStructureId) return 'N/A';
+    const structure = this.feeStructures.find(f => f.id === feeStructureId);
+    return structure ? (structure.feeName || 'N/A') : 'N/A';
+  }
+
+  deleteAuditLog(log: any): void {
+    if (!log?.id) return;
+    this.confirmMessage = 'Delete this audit log entry? This action cannot be undone.';
+    this.confirmCallback = () => {
+      const user = this.auth.getUser();
+      const userId = user?.id;
+      this.noticeService.deleteAuditLog(log.id, userId).subscribe({
+        next: (result) => {
+          if (result && result.ok) {
+            this.showSnackbarMessage('Audit log deleted', 'success');
+            this.loadNoticeAuditLogs();
+          } else {
+            this.showSnackbarMessage('Failed to delete audit log', 'error');
+          }
+        },
+        error: (err) => {
+          console.error('Error deleting audit log:', err);
+          this.showSnackbarMessage('Failed to delete audit log: ' + (err.error?.message || err.message), 'error');
+        }
+      });
+    };
+    this.showConfirmDialog = true;
+  }
+
   // Students methods
   loadStudents(filter: 'all' | 'active' | 'inactive' | 'pass-out'): void {
     this.studentFilter = filter;
@@ -4786,6 +4240,7 @@ export class AdminDashboardComponent implements OnInit {
 
     const entityId = parseInt(this.entity.id);
     console.log('Loading students for entity:', entityId, 'filter:', filter);
+    this.loadSubjectListLookups(entityId);
 
     if (filter === 'all') {
       // Load all approved students
@@ -5960,10 +5415,1383 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
+  // Load subjects for Subject List tab
+  loadSubjectList(): void {
+    if (!this.entity?.id) {
+      console.log('loadSubjectList: No entity ID');
+      return;
+    }
+    const entityId = Number(this.entity.id);
+    this.loadSubjectListLookups(entityId);
+    this.isLoadingSubjectList = true;
+    console.log('loadSubjectList: Loading subjects for entity:', entityId);
+    this.subjectService.getSubjectsByEntity(entityId).subscribe({
+      next: (result) => {
+        this.isLoadingSubjectList = false;
+        console.log('loadSubjectList: API response:', result);
+        if (result && result.ok && result.data) {
+          this.subjectList = Array.isArray(result.data) ? result.data : [];
+        } else if (result && result.data && Array.isArray(result.data)) {
+          this.subjectList = result.data;
+        } else if (Array.isArray(result)) {
+          this.subjectList = result;
+        } else {
+          this.subjectList = [];
+        }
+        console.log('loadSubjectList: Subjects loaded:', this.subjectList.length);
+        if (this.activeTab === 'syllabus-materials' && !this.selectedSubjectForContentId && this.subjectList.length > 0) {
+          this.selectedSubjectForContentId = this.subjectList[0].id ?? null;
+          this.onSubjectContentSubjectChange();
+        }
+      },
+      error: (err) => {
+        this.isLoadingSubjectList = false;
+        console.error('loadSubjectList: Error loading subjects:', err);
+        this.subjectList = [];
+      }
+    });
+  }
+
+  onSubjectContentSubjectChange(): void {
+    if (!this.selectedSubjectForContentId) {
+      this.subjectContentForm.subjectId = 0;
+      return;
+    }
+    const subjectId = typeof this.selectedSubjectForContentId === 'string'
+      ? parseInt(this.selectedSubjectForContentId)
+      : this.selectedSubjectForContentId;
+    if (!subjectId || Number.isNaN(subjectId)) {
+      this.subjectContentForm.subjectId = 0;
+      return;
+    }
+    this.selectedSubjectForContentId = subjectId;
+    const subject = this.subjectList.find(s => s.id === subjectId);
+    if (subject?.classId) {
+      this.subjectContentForm.classId = subject.classId;
+    }
+    this.subjectContentForm.subjectId = subjectId;
+  }
+
+  onContentSubjectFilterChange(): void {
+    if (!this.contentSearch.subjectId) {
+      this.subjectContents = [];
+      return;
+    }
+    const subjectId = parseInt(this.contentSearch.subjectId, 10);
+    if (!Number.isNaN(subjectId)) {
+      this.loadSubjectContents(subjectId);
+    }
+  }
+
+  openSubjectContentView(content: SubjectContent): void {
+    this.subjectContentModalMode = 'view';
+    this.selectedSubjectContent = content;
+    this.showSubjectContentModal = true;
+  }
+
+  openSubjectContentEdit(content: SubjectContent): void {
+    this.subjectContentModalMode = 'edit';
+    this.selectedSubjectContent = content;
+    const subject = this.subjectList.find((item) => item.id === content.subjectId);
+    this.subjectContentEditForm = {
+      ...content,
+      classId: content.classId || subject?.classId || undefined,
+      visibleToStudents: content.visibleToStudents ?? true,
+      visibleToParents: content.visibleToParents ?? false,
+      teacherEditable: content.teacherEditable ?? true,
+      status: content.status || 'active'
+    };
+    this.showSubjectContentModal = true;
+  }
+
+  closeSubjectContentModal(): void {
+    this.showSubjectContentModal = false;
+    this.selectedSubjectContent = null;
+    this.subjectContentEditForm = {};
+  }
+
+  onEditSubjectContentFileSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        this.subjectContentEditForm.fileData = result;
+        this.subjectContentEditForm.fileName = file.name;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  saveSubjectContentChanges(): void {
+    if (!this.selectedSubjectContent?.id) {
+      return;
+    }
+    const subjectId = this.subjectContentEditForm.subjectId || this.selectedSubjectContent.subjectId;
+    const payload: Partial<SubjectContent> = {
+      subjectId,
+      classId: this.subjectContentEditForm.classId || this.selectedSubjectContent.classId,
+      sectionId: this.subjectContentEditForm.sectionId || undefined,
+      type: this.subjectContentEditForm.type || this.selectedSubjectContent.type,
+      title: this.subjectContentEditForm.title || '',
+      description: this.subjectContentEditForm.description || '',
+      unit: this.subjectContentEditForm.unit || '',
+      topicName: this.subjectContentEditForm.topicName || '',
+      linkUrl: this.subjectContentEditForm.linkUrl || '',
+      fileData: this.subjectContentEditForm.fileData,
+      fileName: this.subjectContentEditForm.fileName,
+      visibleToStudents: this.subjectContentEditForm.visibleToStudents,
+      visibleToParents: this.subjectContentEditForm.visibleToParents,
+      teacherEditable: this.subjectContentEditForm.teacherEditable,
+      status: this.subjectContentEditForm.status || 'active'
+    };
+
+    if (!payload.fileData) {
+      delete payload.fileData;
+      delete payload.fileName;
+    }
+
+    this.subjectContentService.updateContent(this.selectedSubjectContent.id, payload).subscribe({
+      next: (result) => {
+        if (result && result.ok) {
+          this.showSnackbarMessage('Content updated successfully', 'success');
+          this.closeSubjectContentModal();
+          this.loadSubjectContents(subjectId);
+        } else {
+          this.showSnackbarMessage(result.message || 'Failed to update content', 'error');
+        }
+      },
+      error: (err) => {
+        console.error('saveSubjectContentChanges: Error', err);
+        this.showSnackbarMessage('Failed to update content', 'error');
+      }
+    });
+  }
+
+  onAssignmentsTabClick(): void {
+    this.activeTab = 'assignments';
+    this.loadCourses();
+    this.loadAllSubjects();
+    this.loadTeachers('all');
+    this.loadAssignmentOverview();
+    this.loadAdminAssignments();
+  }
+
+  onAssignmentCourseChange(): void {
+    this.assignmentFilters.classId = '';
+    this.assignmentFilters.sectionId = '';
+    this.assignmentFilterSections = [];
+    this.assignmentFilterClasses = [];
+    if (!this.assignmentFilters.courseId) {
+      return;
+    }
+    const courseId = parseInt(this.assignmentFilters.courseId, 10);
+    if (Number.isNaN(courseId)) {
+      return;
+    }
+    this.subjectService.getClassesByCourse(courseId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.assignmentFilterClasses = result.data;
+        } else {
+          this.assignmentFilterClasses = [];
+        }
+      },
+      error: () => {
+        this.assignmentFilterClasses = [];
+      }
+    });
+  }
+
+  onAssignmentClassChange(): void {
+    this.assignmentFilters.sectionId = '';
+    this.assignmentFilterSections = [];
+    if (!this.assignmentFilters.classId) {
+      return;
+    }
+    const classId = parseInt(this.assignmentFilters.classId, 10);
+    if (Number.isNaN(classId)) {
+      return;
+    }
+    this.subjectService.getSectionsByClass(classId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.assignmentFilterSections = result.data;
+        } else {
+          this.assignmentFilterSections = [];
+        }
+      },
+      error: () => {
+        this.assignmentFilterSections = [];
+      }
+    });
+  }
+
+  applyAssignmentFilters(): void {
+    this.loadAssignmentOverview();
+    this.loadAdminAssignments();
+  }
+
+  resetAssignmentFilters(): void {
+    this.assignmentFilters = {
+      courseId: '',
+      classId: '',
+      sectionId: '',
+      subjectId: '',
+      teacherId: '',
+      status: '',
+      fromDate: '',
+      toDate: ''
+    };
+    this.assignmentFilterClasses = [];
+    this.assignmentFilterSections = [];
+    this.applyAssignmentFilters();
+  }
+
+  loadAssignmentOverview(): void {
+    if (!this.entity?.id) {
+      return;
+    }
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.assignmentFilters };
+    this.isLoadingAssignmentOverview = true;
+    this.assignmentService.getAdminOverview(params).subscribe({
+      next: (result) => {
+        this.isLoadingAssignmentOverview = false;
+        this.assignmentOverview = result && result.ok ? result.data : null;
+      },
+      error: () => {
+        this.isLoadingAssignmentOverview = false;
+        this.assignmentOverview = null;
+      }
+    });
+  }
+
+  loadAdminAssignments(): void {
+    if (!this.entity?.id) {
+      return;
+    }
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.assignmentFilters };
+    this.isLoadingAdminAssignments = true;
+    this.assignmentService.getAdminAssignments(params).subscribe({
+      next: (result) => {
+        this.isLoadingAdminAssignments = false;
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.adminAssignments = result.data;
+        } else {
+          this.adminAssignments = [];
+        }
+      },
+      error: () => {
+        this.isLoadingAdminAssignments = false;
+        this.adminAssignments = [];
+      }
+    });
+  }
+
+  updateAssignmentStatus(assignment: AssignmentSummary, status: string): void {
+    if (!assignment.id) return;
+    this.assignmentService.updateStatus(assignment.id, status).subscribe({
+      next: () => {
+        this.showSnackbarMessage('Assignment updated', 'success');
+        this.loadAssignmentOverview();
+        this.loadAdminAssignments();
+      },
+      error: () => this.showSnackbarMessage('Failed to update assignment', 'error')
+    });
+  }
+
+  extendAssignmentDueDate(assignment: AssignmentSummary): void {
+    if (!assignment.id) return;
+    const newDate = prompt('Enter new due date (YYYY-MM-DD):');
+    if (!newDate) return;
+    const reason = prompt('Reason for extension:') || '';
+    const extendedDueDate = `${newDate}T23:59:59`;
+    this.assignmentService.extendDueDate(assignment.id, extendedDueDate, reason).subscribe({
+      next: () => {
+        this.showSnackbarMessage('Due date extended', 'success');
+        this.loadAssignmentOverview();
+        this.loadAdminAssignments();
+      },
+      error: () => this.showSnackbarMessage('Failed to extend due date', 'error')
+    });
+  }
+
+  toggleAssignmentLock(assignment: AssignmentSummary): void {
+    if (!assignment.id) return;
+    const nextLock = !assignment.lockAfterDueDate;
+    this.assignmentService.updateLock(assignment.id, nextLock).subscribe({
+      next: () => {
+        this.showSnackbarMessage('Assignment lock updated', 'success');
+        this.loadAdminAssignments();
+      },
+      error: () => this.showSnackbarMessage('Failed to update lock', 'error')
+    });
+  }
+
+  exportAssignmentsCsv(): void {
+    if (!this.adminAssignments.length) return;
+    const rows = this.adminAssignments.map((a) => ({
+      Title: a.title,
+      Subject: this.getSubjectName(a.subjectId || 0),
+      Course: this.getCourseName(a.courseId || 0),
+      Class: this.getClassName(a.classId || 0),
+      Section: a.sectionId ? this.getSectionName(a.sectionId) : 'All',
+      Teacher: a.teacherId ? this.getTeacherName(a.teacherId) : 'N/A',
+      DueDate: a.extendedDueDate || a.dueDate || '',
+      Status: a.status || '',
+      SubmissionStatus: a.submissionStatus || '',
+      TotalStudents: a.totalStudents || 0,
+      Submitted: a.submittedCount || 0,
+      Pending: a.pendingCount || 0,
+      Late: a.lateSubmissions || 0,
+      EvaluationPending: a.evaluationsPending || 0,
+      AverageMarks: a.averageMarks || 0
+    }));
+    const header = Object.keys(rows[0]).join(',');
+    const csv = [header, ...rows.map((row) => Object.values(row).map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'assignments-export.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  exportAssignmentsPdf(): void {
+    if (!this.adminAssignments.length) return;
+    const html = `
+      <html>
+      <head><title>Assignments Report</title></head>
+      <body>
+        <h2>Assignments Report</h2>
+        <table border="1" cellspacing="0" cellpadding="6">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Subject</th>
+              <th>Course</th>
+              <th>Class</th>
+              <th>Section</th>
+              <th>Teacher</th>
+              <th>Due Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this.adminAssignments.map((a) => `
+              <tr>
+                <td>${a.title || ''}</td>
+                <td>${this.getSubjectName(a.subjectId || 0)}</td>
+                <td>${this.getCourseName(a.courseId || 0)}</td>
+                <td>${this.getClassName(a.classId || 0)}</td>
+                <td>${a.sectionId ? this.getSectionName(a.sectionId) : 'All'}</td>
+                <td>${a.teacherId ? this.getTeacherName(a.teacherId) : 'N/A'}</td>
+                <td>${a.extendedDueDate || a.dueDate || ''}</td>
+                <td>${a.status || ''}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.print();
+    }
+  }
+
+  onAttendanceTabClick(): void {
+    this.activeTab = 'attendance';
+    this.loadCourses();
+    this.loadAllSubjects();
+    this.loadTeachers('all');
+    this.loadAttendanceOverview();
+    this.loadAttendanceStudentReports();
+    this.loadAttendanceTeacherActivity();
+    this.loadAttendancePolicy();
+    this.loadAttendanceCorrections();
+    this.loadAttendanceAuditLogs();
+  }
+
+  onAttendanceCourseChange(): void {
+    this.attendanceFilters.classId = '';
+    this.attendanceFilters.sectionId = '';
+    this.attendanceFilterSections = [];
+    this.attendanceFilterClasses = [];
+    if (!this.attendanceFilters.courseId) {
+      return;
+    }
+    const courseId = parseInt(this.attendanceFilters.courseId, 10);
+    if (Number.isNaN(courseId)) {
+      return;
+    }
+    this.subjectService.getClassesByCourse(courseId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.attendanceFilterClasses = result.data;
+        } else {
+          this.attendanceFilterClasses = [];
+        }
+      },
+      error: () => {
+        this.attendanceFilterClasses = [];
+      }
+    });
+  }
+
+  onAttendanceClassChange(): void {
+    this.attendanceFilters.sectionId = '';
+    this.attendanceFilterSections = [];
+    if (!this.attendanceFilters.classId) {
+      return;
+    }
+    const classId = parseInt(this.attendanceFilters.classId, 10);
+    if (Number.isNaN(classId)) {
+      return;
+    }
+    this.subjectService.getSectionsByClass(classId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.attendanceFilterSections = result.data;
+        } else {
+          this.attendanceFilterSections = [];
+        }
+      },
+      error: () => {
+        this.attendanceFilterSections = [];
+      }
+    });
+  }
+
+  applyAttendanceFilters(): void {
+    this.loadAttendanceOverview();
+    this.loadAttendanceStudentReports();
+    this.loadAttendanceTeacherActivity();
+  }
+
+  resetAttendanceFilters(): void {
+    this.attendanceFilters = {
+      courseId: '',
+      classId: '',
+      sectionId: '',
+      subjectId: '',
+      teacherId: '',
+      fromDate: '',
+      toDate: ''
+    };
+    this.attendanceFilterClasses = [];
+    this.attendanceFilterSections = [];
+    this.applyAttendanceFilters();
+  }
+
+  loadAttendanceOverview(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.attendanceFilters };
+    this.isLoadingAttendanceOverview = true;
+    this.attendanceService.getOverview(params).subscribe({
+      next: (result) => {
+        this.isLoadingAttendanceOverview = false;
+        this.attendanceOverview = result && result.ok ? result.data : null;
+      },
+      error: () => {
+        this.isLoadingAttendanceOverview = false;
+        this.attendanceOverview = null;
+      }
+    });
+  }
+
+  loadAttendanceStudentReports(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.attendanceFilters };
+    this.isLoadingAttendanceReports = true;
+    this.attendanceService.getStudentReports(params).subscribe({
+      next: (result) => {
+        this.isLoadingAttendanceReports = false;
+        this.attendanceStudentReports = result && result.ok && Array.isArray(result.data) ? result.data : [];
+      },
+      error: () => {
+        this.isLoadingAttendanceReports = false;
+        this.attendanceStudentReports = [];
+      }
+    });
+  }
+
+  loadAttendanceTeacherActivity(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.attendanceFilters };
+    this.isLoadingAttendanceTeachers = true;
+    this.attendanceService.getTeacherActivity(params).subscribe({
+      next: (result) => {
+        this.isLoadingAttendanceTeachers = false;
+        this.attendanceTeacherActivity = result && result.ok && Array.isArray(result.data) ? result.data : [];
+      },
+      error: () => {
+        this.isLoadingAttendanceTeachers = false;
+        this.attendanceTeacherActivity = [];
+      }
+    });
+  }
+
+  loadAttendancePolicy(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    this.isLoadingAttendancePolicy = true;
+    this.attendanceService.getPolicy(entityId).subscribe({
+      next: (result) => {
+        this.isLoadingAttendancePolicy = false;
+        this.attendancePolicy = result && result.ok ? result.data : null;
+      },
+      error: () => {
+        this.isLoadingAttendancePolicy = false;
+        this.attendancePolicy = null;
+      }
+    });
+  }
+
+  saveAttendancePolicy(): void {
+    if (!this.entity?.id || !this.attendancePolicy) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    this.attendanceService.updatePolicy(entityId, this.attendancePolicy).subscribe({
+      next: () => this.showSnackbarMessage('Policy updated', 'success'),
+      error: () => this.showSnackbarMessage('Failed to update policy', 'error')
+    });
+  }
+
+  loadAttendanceCorrections(): void {
+    this.isLoadingAttendanceCorrections = true;
+    this.attendanceService.getCorrections('pending').subscribe({
+      next: (result) => {
+        this.isLoadingAttendanceCorrections = false;
+        this.attendanceCorrections = result && result.ok && Array.isArray(result.data) ? result.data : [];
+      },
+      error: () => {
+        this.isLoadingAttendanceCorrections = false;
+        this.attendanceCorrections = [];
+      }
+    });
+  }
+
+  updateAttendanceCorrection(request: AttendanceCorrection, status: string): void {
+    if (!request.id) return;
+    this.attendanceService.updateCorrection(request.id, status).subscribe({
+      next: () => {
+        this.showSnackbarMessage('Correction updated', 'success');
+        this.loadAttendanceCorrections();
+      },
+      error: () => this.showSnackbarMessage('Failed to update correction', 'error')
+    });
+  }
+
+  // ========== TEACHER ATTENDANCE METHODS ==========
+
+  loadTeacherDailyAttendance(): void {
+    if (!this.entity?.id) {
+      alert('Entity not loaded');
+      return;
+    }
+
+    this.isLoadingTeacherAttendance = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.attendanceService.getTeacherDailyAttendance(entityId, this.teacherAttendanceDate).subscribe({
+      next: (result: any) => {
+        if (result.ok && result.data) {
+          this.teacherAttendanceData = result.data;
+          this.teacherAttendanceSession = result.data.session;
+          this.teacherAttendanceList = result.data.teachers.map((t: any) => ({
+            ...t,
+            status: t.status || '',
+            entryId: t.entryId || null
+          }));
+        } else {
+          this.teacherAttendanceList = [];
+        }
+        this.isLoadingTeacherAttendance = false;
+      },
+      error: (err) => {
+        alert('Error loading teacher attendance: ' + (err.error?.message || err.message));
+        console.error('Error loading teacher attendance:', err);
+        this.teacherAttendanceList = [];
+        this.isLoadingTeacherAttendance = false;
+      }
+    });
+  }
+
+  markTeacherAttendanceStatus(teacher: any, status: string): void {
+    teacher.status = status;
+  }
+
+  markAllTeachersPresent(): void {
+    this.teacherAttendanceList.forEach((teacher: any) => {
+      teacher.status = 'present';
+    });
+  }
+
+  resetTeacherAttendance(): void {
+    this.teacherAttendanceList.forEach((teacher: any) => {
+      teacher.status = '';
+    });
+  }
+
+  getTeacherPresentCount(): number {
+    return this.teacherAttendanceList.filter((t: any) => t.status === 'present').length;
+  }
+
+  getTeacherAbsentCount(): number {
+    return this.teacherAttendanceList.filter((t: any) => t.status === 'absent').length;
+  }
+
+  getTeacherLeaveCount(): number {
+    return this.teacherAttendanceList.filter((t: any) => t.status === 'leave').length;
+  }
+
+  getTeacherHalfDayCount(): number {
+    return this.teacherAttendanceList.filter((t: any) => t.status === 'half-day').length;
+  }
+
+  saveTeacherAttendance(): void {
+    if (!this.entity?.id || !this.teacherAttendanceSession?.id) {
+      alert('Session not loaded');
+      return;
+    }
+
+    const user = this.auth.getUser();
+    const markedByUserId = user?.id || 1;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+
+    const attendanceData = this.teacherAttendanceList
+      .filter((t: any) => t.status === 'present' || t.status === 'absent' || t.status === 'leave' || t.status === 'half-day')
+      .map((t: any) => ({
+        teacherId: t.teacherId,
+        status: t.status,
+        remarks: t.remarks || null
+      }));
+
+    if (attendanceData.length === 0) {
+      alert('Please mark attendance for at least one teacher');
+      return;
+    }
+
+    this.isSavingTeacherAttendance = true;
+    this.attendanceService.markTeacherAttendance(
+      entityId,
+      this.teacherAttendanceSession.id,
+      markedByUserId,
+      attendanceData
+    ).subscribe({
+      next: (result: any) => {
+        if (result.ok) {
+          alert('Teacher attendance saved successfully!');
+          this.teacherAttendanceSession.status = result.data.status;
+          this.loadTeacherDailyAttendance();
+        } else {
+          alert('Error: ' + (result.message || 'Failed to save attendance'));
+        }
+        this.isSavingTeacherAttendance = false;
+      },
+      error: (err) => {
+        alert('Error saving teacher attendance: ' + (err.error?.message || err.message));
+        console.error('Error saving teacher attendance:', err);
+        this.isSavingTeacherAttendance = false;
+      }
+    });
+  }
+
+  loadTeacherAttendanceDashboard(): void {
+    if (!this.entity?.id) return;
+
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.attendanceService.getTeacherAttendanceDashboard(entityId).subscribe({
+      next: (result: any) => {
+        if (result.ok && result.data) {
+          this.teacherAttendanceDashboard = result.data;
+        } else {
+          this.teacherAttendanceDashboard = null;
+        }
+      },
+      error: (err) => {
+        console.error('Error loading teacher attendance dashboard:', err);
+        this.teacherAttendanceDashboard = null;
+      }
+    });
+  }
+
+  loadTeacherAttendanceReports(): void {
+    if (!this.entity?.id || !this.teacherReportFromDate || !this.teacherReportToDate) {
+      alert('Please select both from and to dates');
+      return;
+    }
+
+    this.isLoadingTeacherReports = true;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    this.attendanceService.getTeacherAttendanceReports(
+      entityId,
+      this.teacherReportFromDate,
+      this.teacherReportToDate
+    ).subscribe({
+      next: (result: any) => {
+        if (result.ok && result.data) {
+          this.teacherAttendanceReports = result.data;
+        } else {
+          this.teacherAttendanceReports = [];
+        }
+        this.isLoadingTeacherReports = false;
+      },
+      error: (err) => {
+        alert('Error loading reports: ' + (err.error?.message || err.message));
+        console.error('Error loading teacher attendance reports:', err);
+        this.teacherAttendanceReports = [];
+        this.isLoadingTeacherReports = false;
+      }
+    });
+  }
+
+  loadAttendanceAuditLogs(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    this.isLoadingAttendanceAudit = true;
+    this.attendanceService.getAuditLogs(entityId).subscribe({
+      next: (result) => {
+        this.isLoadingAttendanceAudit = false;
+        this.attendanceAuditLogs = result && result.ok && Array.isArray(result.data) ? result.data : [];
+      },
+      error: () => {
+        this.isLoadingAttendanceAudit = false;
+        this.attendanceAuditLogs = [];
+      }
+    });
+  }
+
+  exportAttendanceReportsCsv(): void {
+    if (!this.attendanceStudentReports.length) return;
+    const rows = this.attendanceStudentReports.map((report) => ({
+      StudentId: report.studentId,
+      AttendancePercent: report.percent || 0,
+      Present: report.present || 0,
+      Total: report.total || 0
+    }));
+    const header = Object.keys(rows[0]).join(',');
+    const csv = [header, ...rows.map((row) => Object.values(row).map((v) => `"${String(v).replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'attendance-student-report.csv';
+    link.click();
+    URL.revokeObjectURL(link.href);
+  }
+
+  exportAttendanceReportsPdf(): void {
+    if (!this.attendanceStudentReports.length) return;
+    const html = `
+      <html>
+      <head><title>Attendance Report</title></head>
+      <body>
+        <h2>Student Attendance Report</h2>
+        <table border="1" cellspacing="0" cellpadding="6">
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Attendance %</th>
+              <th>Present</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${this.attendanceStudentReports.map((r) => `
+              <tr>
+                <td>${r.studentId}</td>
+                <td>${(r.percent || 0).toFixed(1)}</td>
+                <td>${r.present || 0}</td>
+                <td>${r.total || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </body>
+      </html>
+    `;
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+      win.print();
+    }
+  }
+
+  onNoticesTabClick(): void {
+    this.activeTab = 'notices';
+    this.loadCourses();
+    this.loadAllSubjects();
+    this.loadTeachers('all');
+    this.loadNoticesOverview();
+    this.loadAdminNotices();
+    this.loadNoticeAuditLogs();
+  }
+
+  onNoticeCourseChange(): void {
+    this.noticeFilters.classId = '';
+    this.noticeFilters.sectionId = '';
+    this.noticeFilterClasses = [];
+    this.noticeFilterSections = [];
+    if (!this.noticeFilters.courseId) return;
+    const courseId = parseInt(this.noticeFilters.courseId, 10);
+    if (Number.isNaN(courseId)) return;
+    this.subjectService.getClassesByCourse(courseId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.noticeFilterClasses = result.data;
+        } else {
+          this.noticeFilterClasses = [];
+        }
+      },
+      error: () => {
+        this.noticeFilterClasses = [];
+      }
+    });
+  }
+
+  onNoticeClassChange(): void {
+    this.noticeFilters.sectionId = '';
+    this.noticeFilterSections = [];
+    if (!this.noticeFilters.classId) return;
+    const classId = parseInt(this.noticeFilters.classId, 10);
+    if (Number.isNaN(classId)) return;
+    this.subjectService.getSectionsByClass(classId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.noticeFilterSections = result.data;
+        } else {
+          this.noticeFilterSections = [];
+        }
+      },
+      error: () => {
+        this.noticeFilterSections = [];
+      }
+    });
+  }
+
+  onNoticeFormCourseChange(): void {
+    this.noticeForm.classId = undefined;
+    this.noticeForm.sectionId = undefined;
+    this.noticeFormClasses = [];
+    this.noticeFormSections = [];
+    if (!this.noticeForm.courseId) return;
+    const courseId = Number(this.noticeForm.courseId);
+    if (Number.isNaN(courseId)) return;
+    this.subjectService.getClassesByCourse(courseId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.noticeFormClasses = result.data;
+        } else {
+          this.noticeFormClasses = [];
+        }
+      },
+      error: () => {
+        this.noticeFormClasses = [];
+      }
+    });
+  }
+
+  onNoticeFormClassChange(): void {
+    this.noticeForm.sectionId = undefined;
+    this.noticeFormSections = [];
+    if (!this.noticeForm.classId) return;
+    const classId = Number(this.noticeForm.classId);
+    if (Number.isNaN(classId)) return;
+    this.subjectService.getSectionsByClass(classId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.noticeFormSections = result.data;
+        } else {
+          this.noticeFormSections = [];
+        }
+      },
+      error: () => {
+        this.noticeFormSections = [];
+      }
+    });
+  }
+
+  applyNoticeFilters(): void {
+    this.loadNoticesOverview();
+    this.loadAdminNotices();
+  }
+
+  resetNoticeFilters(): void {
+    this.noticeFilters = {
+      courseId: '',
+      classId: '',
+      sectionId: '',
+      noticeType: '',
+      targetAudience: '',
+      status: '',
+      fromDate: '',
+      toDate: ''
+    };
+    this.noticeFilterClasses = [];
+    this.noticeFilterSections = [];
+    this.applyNoticeFilters();
+  }
+
+  loadNoticesOverview(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.noticeFilters };
+    this.isLoadingNoticeOverview = true;
+    this.noticeService.getAdminOverview(params).subscribe({
+      next: (result) => {
+        this.isLoadingNoticeOverview = false;
+        this.noticesOverview = result && result.ok ? result.data : null;
+      },
+      error: () => {
+        this.isLoadingNoticeOverview = false;
+        this.noticesOverview = null;
+      }
+    });
+  }
+
+  loadAdminNotices(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    const params = { entityId, ...this.noticeFilters };
+    this.isLoadingNotices = true;
+    this.noticeService.getAdminList(params).subscribe({
+      next: (result) => {
+        this.isLoadingNotices = false;
+        this.adminNotices = result && result.ok && Array.isArray(result.data) ? result.data : [];
+      },
+      error: () => {
+        this.isLoadingNotices = false;
+        this.adminNotices = [];
+      }
+    });
+  }
+
+  loadNoticeAuditLogs(): void {
+    if (!this.entity?.id) return;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    this.isLoadingNoticeAudit = true;
+    this.noticeService.getAuditLogs(entityId).subscribe({
+      next: (result) => {
+        this.isLoadingNoticeAudit = false;
+        this.noticeAuditLogs = result && result.ok && Array.isArray(result.data) ? result.data : [];
+      },
+      error: () => {
+        this.isLoadingNoticeAudit = false;
+        this.noticeAuditLogs = [];
+      }
+    });
+  }
+
+  onNoticeAttachmentSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        this.noticeForm.attachmentData = result;
+        this.noticeForm.attachmentName = file.name;
+        this.noticeForm.attachmentType = file.type;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  editNotice(notice: any): void {
+    if (!notice?.id) {
+      console.error('Cannot edit notice: no ID found', notice);
+      return;
+    }
+    
+    // Ensure we're on the notices tab
+    this.activeTab = 'notices';
+    
+    this.isEditingNotice = true;
+    this.noticeForm = { ...notice };
+    this.noticeForm.id = notice.id;
+    
+    // Format dates for datetime-local inputs (YYYY-MM-DDTHH:mm)
+    if (this.noticeForm.publishAt) {
+      try {
+        const publishDate = new Date(this.noticeForm.publishAt);
+        const year = publishDate.getFullYear();
+        const month = String(publishDate.getMonth() + 1).padStart(2, '0');
+        const day = String(publishDate.getDate()).padStart(2, '0');
+        const hours = String(publishDate.getHours()).padStart(2, '0');
+        const minutes = String(publishDate.getMinutes()).padStart(2, '0');
+        this.noticeForm.publishAt = `${year}-${month}-${day}T${hours}:${minutes}`;
+      } catch (e) {
+        console.error('Error formatting publishAt date:', e);
+      }
+    }
+    
+    if (this.noticeForm.expiresAt) {
+      try {
+        const expiresDate = new Date(this.noticeForm.expiresAt);
+        const year = expiresDate.getFullYear();
+        const month = String(expiresDate.getMonth() + 1).padStart(2, '0');
+        const day = String(expiresDate.getDate()).padStart(2, '0');
+        const hours = String(expiresDate.getHours()).padStart(2, '0');
+        const minutes = String(expiresDate.getMinutes()).padStart(2, '0');
+        this.noticeForm.expiresAt = `${year}-${month}-${day}T${hours}:${minutes}`;
+      } catch (e) {
+        console.error('Error formatting expiresAt date:', e);
+      }
+    }
+    
+    if (this.noticeForm.courseId) {
+      this.onNoticeFormCourseChange();
+    }
+    if (this.noticeForm.classId) {
+      this.onNoticeFormClassChange();
+    }
+    
+    // Scroll to form after a brief delay to ensure DOM is updated
+    setTimeout(() => {
+      const formElement = document.querySelector('.form-header h3');
+      if (formElement) {
+        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 200);
+  }
+
+  resetNoticeForm(): void {
+    this.isEditingNotice = false;
+    this.noticeFormClasses = [];
+    this.noticeFormSections = [];
+    this.noticeForm = {
+      title: '',
+      description: '',
+      noticeType: 'General',
+      targetAudience: 'ALL',
+      status: 'draft',
+      visibleToStudents: true,
+      visibleToTeachers: true,
+      visibleToParents: true,
+      sendEmail: false,
+      sendSms: false,
+      sendWhatsapp: false
+    };
+  }
+
+  saveNotice(): void {
+    if (!this.entity?.id || !this.noticeForm.title) {
+      this.showSnackbarMessage('Please fill required fields', 'error');
+      return;
+    }
+    const user = this.auth.getUser();
+    const userId = user?.id;
+    const entityId = typeof this.entity.id === 'string' ? parseInt(this.entity.id) : this.entity.id;
+    
+    const isUpdate = this.isEditingNotice && this.noticeForm.id;
+    console.log('Saving notice:', { isUpdate, noticeId: this.noticeForm.id, isEditing: this.isEditingNotice });
+    
+    const payload: Notice = {
+      ...this.noticeForm,
+      entityId,
+      courseId: this.noticeForm.courseId ? Number(this.noticeForm.courseId) : undefined,
+      classId: this.noticeForm.classId ? Number(this.noticeForm.classId) : undefined,
+      sectionId: this.noticeForm.sectionId ? Number(this.noticeForm.sectionId) : undefined
+    } as Notice;
+
+    const action = isUpdate
+      ? this.noticeService.updateNotice(this.noticeForm.id!, payload, userId)
+      : this.noticeService.createNotice(payload, userId);
+
+    action.subscribe({
+      next: (result) => {
+        console.log('Notice save result:', result);
+        if (result && result.ok) {
+          this.showSnackbarMessage(isUpdate ? 'Notice updated successfully' : 'Notice created successfully', 'success');
+          this.resetNoticeForm();
+          this.loadNoticesOverview();
+          this.loadAdminNotices();
+          this.loadNoticeAuditLogs();
+        } else {
+          this.showSnackbarMessage(result?.message || 'Failed to save notice', 'error');
+        }
+      },
+      error: (err) => {
+        console.error('Error saving notice:', err);
+        this.showSnackbarMessage('Failed to save notice: ' + (err.error?.message || err.message), 'error');
+      }
+    });
+  }
+
+  updateNoticeStatus(notice: any, status: string): void {
+    if (!notice?.id) return;
+    const user = this.auth.getUser();
+    const userId = user?.id;
+    this.noticeService.updateStatus(notice.id, status, userId).subscribe({
+      next: () => {
+        this.showSnackbarMessage('Notice updated', 'success');
+        this.loadNoticesOverview();
+        this.loadAdminNotices();
+        this.loadNoticeAuditLogs();
+      },
+      error: () => this.showSnackbarMessage('Failed to update notice', 'error')
+    });
+  }
+
+  deleteNotice(notice: any): void {
+    if (!notice?.id) return;
+    this.confirmMessage = 'Delete this notice? This cannot be undone.';
+    this.confirmCallback = () => {
+      const user = this.auth.getUser();
+      const userId = user?.id;
+      this.noticeService.deleteNotice(notice.id, userId).subscribe({
+        next: (result) => {
+          if (result && result.ok) {
+            this.showSnackbarMessage('Notice deleted', 'success');
+            this.loadNoticesOverview();
+            this.loadAdminNotices();
+            this.loadNoticeAuditLogs();
+          } else {
+            this.showSnackbarMessage('Failed to delete notice', 'error');
+          }
+        },
+        error: () => this.showSnackbarMessage('Failed to delete notice', 'error')
+      });
+    };
+    this.showConfirmDialog = true;
+  }
+
+  loadSubjectContents(subjectId: number): void {
+    this.isLoadingSubjectContents = true;
+    this.subjectContentService.getBySubject(subjectId, 'ADMIN').subscribe({
+      next: (result) => {
+        this.isLoadingSubjectContents = false;
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.subjectContents = result.data;
+        } else {
+          this.subjectContents = [];
+        }
+      },
+      error: (err) => {
+        this.isLoadingSubjectContents = false;
+        console.error('loadSubjectContents: Error', err);
+        this.subjectContents = [];
+      }
+    });
+  }
+
+  onSubjectContentFileSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        this.subjectContentForm.fileData = result;
+        this.subjectContentForm.fileName = file.name;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  submitSubjectContent(): void {
+    if (!this.entity?.id) {
+      this.showSnackbarMessage('Entity not loaded', 'error');
+      return;
+    }
+    if (!this.selectedSubjectForContentId) {
+      this.showSnackbarMessage('Please select a subject', 'error');
+      return;
+    }
+    const subjectId = typeof this.selectedSubjectForContentId === 'string'
+      ? parseInt(this.selectedSubjectForContentId)
+      : this.selectedSubjectForContentId;
+    if (!subjectId || Number.isNaN(subjectId)) {
+      this.showSnackbarMessage('Please select a valid subject', 'error');
+      return;
+    }
+    if (!this.subjectContentForm.title || !this.subjectContentForm.type) {
+      this.showSnackbarMessage('Please enter title and type', 'error');
+      return;
+    }
+
+    const subject = this.subjectList.find(s => s.id === subjectId);
+    const payload: SubjectContent = {
+      ...this.subjectContentForm,
+      entityId: Number(this.entity.id),
+      subjectId,
+      classId: subject?.classId || this.subjectContentForm.classId || undefined,
+      sectionId: this.subjectContentForm.sectionId || undefined,
+      status: this.subjectContentForm.type === 'SYLLABUS' ? 'active' : (this.subjectContentForm.status || 'active'),
+      createdByRole: 'ADMIN'
+    };
+
+    this.subjectContentService.createContent(payload).subscribe({
+      next: (result) => {
+        if (result && result.ok) {
+          this.showSnackbarMessage('Content uploaded successfully', 'success');
+          this.resetSubjectContentForm();
+          this.loadSubjectContents(subjectId);
+        } else {
+          this.showSnackbarMessage(result.message || 'Failed to upload content', 'error');
+        }
+      },
+      error: (err) => {
+        console.error('submitSubjectContent: Error', err);
+        this.showSnackbarMessage('Failed to upload content', 'error');
+      }
+    });
+  }
+
+  resetSubjectContentForm(): void {
+    this.subjectContentForm = {
+      entityId: Number(this.entity?.id || 0),
+      subjectId: this.selectedSubjectForContentId || 0,
+      type: 'SYLLABUS',
+      title: '',
+      description: '',
+      unit: '',
+      topicName: '',
+      fileName: '',
+      fileData: '',
+      linkUrl: '',
+      visibleToStudents: true,
+      visibleToParents: false,
+      teacherEditable: true,
+      status: 'active',
+      classId: this.subjectContentForm.classId
+    };
+  }
+
+  deleteSubjectContent(content: SubjectContent): void {
+    if (!content.id) return;
+    this.confirmMessage = `Delete ${content.title}?`;
+    this.confirmCallback = () => {
+      this.subjectContentService.deleteContent(content.id!).subscribe({
+        next: (result) => {
+          if (result && result.ok) {
+            this.showSnackbarMessage('Content deleted', 'success');
+            if (this.selectedSubjectForContentId) {
+              this.loadSubjectContents(this.selectedSubjectForContentId);
+            }
+          } else {
+            this.showSnackbarMessage(result.message || 'Failed to delete content', 'error');
+          }
+        },
+        error: () => {
+          this.showSnackbarMessage('Failed to delete content', 'error');
+        }
+      });
+    };
+    this.showConfirmDialog = true;
+  }
+
+  private loadSubjectListLookups(entityId: number): void {
+    this.subjectService.getCoursesByEntity(entityId).subscribe({
+      next: (result) => {
+        if (result && result.ok && Array.isArray(result.data)) {
+          this.courses = result.data.filter((c: Course) => c.status !== 'inactive');
+        } else if (Array.isArray(result)) {
+          this.courses = result.filter((c: Course) => c.status !== 'inactive');
+        } else {
+          this.courses = [];
+        }
+
+        const courseIds = this.courses.map((course) => course.id).filter((id): id is number => !!id);
+        if (courseIds.length === 0) {
+          this.subjectListClasses = [];
+          return;
+        }
+
+        forkJoin(courseIds.map((courseId) => this.subjectService.getClassesByCourse(courseId))).subscribe({
+          next: (results) => {
+            const allClasses: ClassEntity[] = [];
+            results.forEach((res) => {
+              if (res && res.ok && Array.isArray(res.data)) {
+                allClasses.push(...res.data);
+              } else if (Array.isArray(res)) {
+                allClasses.push(...res);
+              }
+            });
+            this.subjectListClasses = allClasses;
+            this.loadSubjectListSections(allClasses);
+          },
+          error: () => {
+            this.subjectListClasses = [];
+            this.subjectListSectionsByClass = {};
+          }
+        });
+      },
+      error: () => {
+        this.courses = [];
+        this.subjectListClasses = [];
+        this.subjectListSectionsByClass = {};
+      }
+    });
+  }
+
+  private loadSubjectListSections(classes: ClassEntity[]): void {
+    const classIds = classes.map((classItem) => classItem.id).filter((id): id is number => !!id);
+    if (classIds.length === 0) {
+      this.subjectListSectionsByClass = {};
+      return;
+    }
+
+    forkJoin(classIds.map((classId) => this.subjectService.getSectionsByClass(classId))).subscribe({
+      next: (results) => {
+        const sectionsByClass: Record<number, Section[]> = {};
+        results.forEach((res, index) => {
+          const classId = classIds[index];
+          if (res && res.ok && Array.isArray(res.data)) {
+            sectionsByClass[classId] = res.data;
+          } else if (Array.isArray(res)) {
+            sectionsByClass[classId] = res;
+          } else {
+            sectionsByClass[classId] = [];
+          }
+        });
+        this.subjectListSectionsByClass = sectionsByClass;
+      },
+      error: () => {
+        this.subjectListSectionsByClass = {};
+      }
+    });
+  }
+
+  // Helper method to check if activeTab is 'subject-list' (to avoid TypeScript narrowing issue)
+  isSubjectListTab(): boolean {
+    const result = this.activeTab === 'subject-list';
+    console.log('🔥 isSubjectListTab() called: activeTab =', this.activeTab, ', result =', result);
+    return result;
+  }
+
+  isSyllabusMaterialsTab(): boolean {
+    return this.activeTab === 'syllabus-materials';
+  }
+
+  // Helper method to check if subjectSubTab is 'teacher-assignment' (to avoid TypeScript narrowing issue)
+  isTeacherAssignmentTab(): boolean {
+    return this.subjectSubTab === 'teacher-assignment';
+  }
+
   getClassName(classId: any): string {
     if (!classId) return 'N/A';
-    const classItem = this.classes.find(c => c.id === classId);
+    const classItem = this.subjectListClasses.find(c => c.id === classId) || this.classes.find(c => c.id === classId);
     return classItem ? classItem.name : 'N/A';
+  }
+
+  getSectionNamesForClass(classId: any): string {
+    if (!classId) return 'N/A';
+    const sections = this.subjectListSectionsByClass[classId];
+    if (!sections || sections.length === 0) return 'All Sections';
+    return sections.map((section) => section.name).join(', ');
   }
 
   loadTeachersForSubject(): void {
@@ -6376,6 +7204,7 @@ export class AdminDashboardComponent implements OnInit {
             this.showSnackbarMessage('Subject updated successfully', 'success');
             this.showSubjectModal = false;
             this.loadSubjectsForClass();
+            this.loadSubjectList(); // Reload Subject List tab
           } else {
             this.showSnackbarMessage(result.message || 'Failed to update subject', 'error');
           }
@@ -6393,6 +7222,7 @@ export class AdminDashboardComponent implements OnInit {
             this.showSubjectModal = false;
             this.loadSubjectsForClass();
             this.loadAllSubjects();
+            this.loadSubjectList(); // Reload Subject List tab
           } else {
             this.showSnackbarMessage(result.message || 'Failed to create subject', 'error');
           }
@@ -6414,6 +7244,7 @@ export class AdminDashboardComponent implements OnInit {
             this.showSnackbarMessage('Subject deleted successfully', 'success');
             this.loadSubjectsForClass();
             this.loadAllSubjects();
+            this.loadSubjectList(); // Also reload Subject List tab
           } else {
             this.showSnackbarMessage(result.message || 'Failed to delete subject', 'error');
           }
@@ -6471,14 +7302,27 @@ export class AdminDashboardComponent implements OnInit {
     this.showConfirmDialog = true;
   }
 
-  getSubjectName(subjectId: number): string {
-    const subject = this.allSubjects.find(s => s.id === subjectId);
+  getSubjectName(subjectId: number | string): string {
+    const id = typeof subjectId === 'string' ? parseInt(subjectId, 10) : subjectId;
+    const subject = this.allSubjects.find(s => s.id === id);
     return subject ? subject.name : 'Unknown';
   }
 
   getTeacherName(teacherId: number): string {
     const teacher = this.teachers.find(t => t.id === teacherId);
     return teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Unknown';
+  }
+
+  getStudentName(studentId: number | undefined): string {
+    if (!studentId) return 'N/A';
+    const student = this.students.find(s => s.id === studentId);
+    return student ? `${student.firstName} ${student.lastName}` : 'N/A';
+  }
+
+  getReceiptAmount(receipt: Receipt): number {
+    if (!receipt.feePaymentId) return 0;
+    const payment = this.feePayments.find(p => p.id === receipt.feePaymentId);
+    return payment ? payment.amount : 0;
   }
 
   getSectionName(sectionId: number): string {
@@ -6501,8 +7345,236 @@ export class AdminDashboardComponent implements OnInit {
     if (!section) {
       section = this.sectionsForSectionsTab.find(s => s.id === sectionId);
     }
+
+    if (!section) {
+      const allSubjectListSections = Object.values(this.subjectListSectionsByClass).flat();
+      section = allSubjectListSections.find(s => s.id === sectionId);
+    }
     
     return section ? section.name : 'All Sections';
+  }
+
+  getStudentCourseName(student: Student): string {
+    if (student.courseId) {
+      const courseName = this.getCourseName(student.courseId);
+      if (courseName !== 'N/A') {
+        return courseName;
+      }
+    }
+
+    if (student.classId) {
+      const classItem = this.subjectListClasses.find(c => c.id === student.classId) || this.classes.find(c => c.id === student.classId);
+      if (classItem?.courseId) {
+        const courseName = this.getCourseName(classItem.courseId);
+        if (courseName !== 'N/A') {
+          return courseName;
+        }
+      }
+    }
+
+    return student.classCourse || 'N/A';
+  }
+
+  getStudentClassName(student: Student): string {
+    if (student.classId) {
+      return this.getClassName(student.classId);
+    }
+    return 'N/A';
+  }
+
+  getStudentSectionName(student: Student): string {
+    if (student.sectionId) {
+      return this.getSectionName(student.sectionId);
+    }
+    return student.classSection || 'N/A';
+  }
+
+  private normalizeFilterValue(value: any): string {
+    return (value ?? '').toString().trim().toLowerCase();
+  }
+
+  private buildUniqueOptions(values: string[]): string[] {
+    return Array.from(new Set(values.filter((value) => value && value.trim() !== '')))
+      .sort((a, b) => a.localeCompare(b));
+  }
+
+  get studentFilterOptions() {
+    const students = this.students || [];
+    return {
+      names: this.buildUniqueOptions(
+        students.map((student) => `${student.firstName || ''} ${student.lastName || ''}`.trim())
+      ),
+      emails: this.buildUniqueOptions(students.map((student) => student.email || '')),
+      rolls: this.buildUniqueOptions(students.map((student) => student.rollNumber || '')),
+      phones: this.buildUniqueOptions(students.map((student) => student.phone || '')),
+      courses: this.buildUniqueOptions(students.map((student) => this.getStudentCourseName(student))),
+      classes: this.buildUniqueOptions(students.map((student) => this.getStudentClassName(student))),
+      sections: this.buildUniqueOptions(students.map((student) => this.getStudentSectionName(student))),
+      academicYears: this.buildUniqueOptions(students.map((student) => student.academicYear || ''))
+    };
+  }
+
+  get teacherFilterOptions() {
+    const teachers = this.teachers || [];
+    return {
+      names: this.buildUniqueOptions(
+        teachers.map((teacher) => `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim())
+      ),
+      emails: this.buildUniqueOptions(teachers.map((teacher) => teacher.email || '')),
+      employeeIds: this.buildUniqueOptions(teachers.map((teacher) => teacher.employeeId || '')),
+      phones: this.buildUniqueOptions(teachers.map((teacher) => teacher.phone || '')),
+      qualifications: this.buildUniqueOptions(teachers.map((teacher) => teacher.qualification || '')),
+      specializations: this.buildUniqueOptions(teachers.map((teacher) => teacher.specialization || ''))
+    };
+  }
+
+  get subjectFilterOptions() {
+    const subjects = this.subjectList || [];
+    return {
+      names: this.buildUniqueOptions(subjects.map((subject) => subject.name || '')),
+      codes: this.buildUniqueOptions(subjects.map((subject) => subject.subjectCode || '')),
+      types: this.buildUniqueOptions(subjects.map((subject) => subject.subjectType || '')),
+      statuses: this.buildUniqueOptions(subjects.map((subject) => subject.status || '')),
+      courses: this.buildUniqueOptions(subjects.map((subject) => this.getCourseName(subject.courseId))),
+      classes: this.buildUniqueOptions(subjects.map((subject) => this.getClassName(subject.classId)))
+    };
+  }
+
+  get contentFilterOptions() {
+    const baseTypes = (this.subjectContentTypes || []).map((type) => type || '');
+    const baseStatuses = ['active', 'inactive'];
+    return {
+      types: this.buildUniqueOptions([
+        ...baseTypes,
+        ...this.subjectContents.map((c) => c.type || '')
+      ]),
+      units: this.buildUniqueOptions(this.subjectContents.map((c) => c.unit || '')),
+      topics: this.buildUniqueOptions(this.subjectContents.map((c) => c.topicName || '')),
+      statuses: this.buildUniqueOptions([
+        ...baseStatuses,
+        ...this.subjectContents.map((c) => c.status || '')
+      ])
+    };
+  }
+
+  get filteredSubjectContents(): SubjectContent[] {
+    const filters = {
+      subjectId: this.normalizeFilterValue(this.contentSearch.subjectId),
+      type: this.normalizeFilterValue(this.contentSearch.type),
+      unit: this.normalizeFilterValue(this.contentSearch.unit),
+      topic: this.normalizeFilterValue(this.contentSearch.topic),
+      status: this.normalizeFilterValue(this.contentSearch.status),
+      visibleStudents: this.normalizeFilterValue(this.contentSearch.visibleStudents),
+      visibleParents: this.normalizeFilterValue(this.contentSearch.visibleParents)
+    };
+
+    return this.subjectContents.filter((content) => {
+      const visibleStudents = content.visibleToStudents ? 'yes' : 'no';
+      const visibleParents = content.visibleToParents ? 'yes' : 'no';
+      return (!filters.subjectId || this.normalizeFilterValue(content.subjectId) === filters.subjectId)
+        && (!filters.type || this.normalizeFilterValue(content.type).includes(filters.type))
+        && (!filters.unit || this.normalizeFilterValue(content.unit).includes(filters.unit))
+        && (!filters.topic || this.normalizeFilterValue(content.topicName).includes(filters.topic))
+        && (!filters.status || this.normalizeFilterValue(content.status).includes(filters.status))
+        && (!filters.visibleStudents || this.normalizeFilterValue(visibleStudents) === filters.visibleStudents)
+        && (!filters.visibleParents || this.normalizeFilterValue(visibleParents) === filters.visibleParents);
+    });
+  }
+
+  get filteredStudents(): Student[] {
+    if (!this.students || this.students.length === 0) {
+      return [];
+    }
+    const filters = {
+      name: this.normalizeFilterValue(this.studentSearch.name),
+      email: this.normalizeFilterValue(this.studentSearch.email),
+      roll: this.normalizeFilterValue(this.studentSearch.roll),
+      phone: this.normalizeFilterValue(this.studentSearch.phone),
+      course: this.normalizeFilterValue(this.studentSearch.course),
+      className: this.normalizeFilterValue(this.studentSearch.className),
+      section: this.normalizeFilterValue(this.studentSearch.section),
+      academicYear: this.normalizeFilterValue(this.studentSearch.academicYear)
+    };
+
+    return this.students.filter((student) => {
+      const fullName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+      const courseName = this.getStudentCourseName(student);
+      const className = this.getStudentClassName(student);
+      const sectionName = this.getStudentSectionName(student);
+      const academicYear = student.academicYear || '';
+      const rollNumber = student.rollNumber || '';
+      const email = student.email || '';
+      const phone = student.phone || '';
+
+      return (!filters.name || this.normalizeFilterValue(fullName).includes(filters.name))
+        && (!filters.email || this.normalizeFilterValue(email).includes(filters.email))
+        && (!filters.roll || this.normalizeFilterValue(rollNumber).includes(filters.roll))
+        && (!filters.phone || this.normalizeFilterValue(phone).includes(filters.phone))
+        && (!filters.course || this.normalizeFilterValue(courseName).includes(filters.course))
+        && (!filters.className || this.normalizeFilterValue(className).includes(filters.className))
+        && (!filters.section || this.normalizeFilterValue(sectionName).includes(filters.section))
+        && (!filters.academicYear || this.normalizeFilterValue(academicYear).includes(filters.academicYear));
+    });
+  }
+
+  get filteredTeachers(): Teacher[] {
+    if (!this.teachers || this.teachers.length === 0) {
+      return [];
+    }
+    const filters = {
+      name: this.normalizeFilterValue(this.teacherSearch.name),
+      email: this.normalizeFilterValue(this.teacherSearch.email),
+      employeeId: this.normalizeFilterValue(this.teacherSearch.employeeId),
+      phone: this.normalizeFilterValue(this.teacherSearch.phone),
+      qualification: this.normalizeFilterValue(this.teacherSearch.qualification),
+      specialization: this.normalizeFilterValue(this.teacherSearch.specialization)
+    };
+
+    return this.teachers.filter((teacher) => {
+      const fullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim();
+      const email = teacher.email || '';
+      const employeeId = teacher.employeeId || '';
+      const phone = teacher.phone || '';
+      const qualification = teacher.qualification || '';
+      const specialization = teacher.specialization || '';
+
+      return (!filters.name || this.normalizeFilterValue(fullName).includes(filters.name))
+        && (!filters.email || this.normalizeFilterValue(email).includes(filters.email))
+        && (!filters.employeeId || this.normalizeFilterValue(employeeId).includes(filters.employeeId))
+        && (!filters.phone || this.normalizeFilterValue(phone).includes(filters.phone))
+        && (!filters.qualification || this.normalizeFilterValue(qualification).includes(filters.qualification))
+        && (!filters.specialization || this.normalizeFilterValue(specialization).includes(filters.specialization));
+    });
+  }
+
+  get filteredSubjectList(): Subject[] {
+    if (!this.subjectList || this.subjectList.length === 0) {
+      return [];
+    }
+    const filters = {
+      name: this.normalizeFilterValue(this.subjectSearch.name),
+      code: this.normalizeFilterValue(this.subjectSearch.code),
+      type: this.normalizeFilterValue(this.subjectSearch.type),
+      status: this.normalizeFilterValue(this.subjectSearch.status),
+      course: this.normalizeFilterValue(this.subjectSearch.course),
+      className: this.normalizeFilterValue(this.subjectSearch.className)
+    };
+
+    return this.subjectList.filter((subject) => {
+      const name = subject.name || '';
+      const code = subject.subjectCode || '';
+      const type = subject.subjectType || '';
+      const status = subject.status || '';
+      const courseName = this.getCourseName(subject.courseId);
+      const className = this.getClassName(subject.classId);
+
+      return (!filters.name || this.normalizeFilterValue(name).includes(filters.name))
+        && (!filters.code || this.normalizeFilterValue(code).includes(filters.code))
+        && (!filters.type || this.normalizeFilterValue(type).includes(filters.type))
+        && (!filters.status || this.normalizeFilterValue(status).includes(filters.status))
+        && (!filters.course || this.normalizeFilterValue(courseName).includes(filters.course))
+        && (!filters.className || this.normalizeFilterValue(className).includes(filters.className));
+    });
   }
 
   getSectionsNames(): string {
@@ -6630,6 +7702,9 @@ export class AdminDashboardComponent implements OnInit {
     this.sectionStudents = [];
     this.isLoadingSectionStudents = true;
     this.showSectionStudentsModal = true;
+    this.sectionTeacherMappings = [];
+    this.isLoadingSectionTeachers = true;
+    this.loadTeachers('all');
     
     if (section.id) {
       this.studentService.getStudentsBySection(section.id).subscribe({
@@ -6648,6 +7723,23 @@ export class AdminDashboardComponent implements OnInit {
           console.error('Error loading section students:', err);
         }
       });
+
+      this.subjectService.getMappingsBySection(section.id).subscribe({
+        next: (result) => {
+          this.isLoadingSectionTeachers = false;
+          if (result && result.ok && Array.isArray(result.data)) {
+            this.sectionTeacherMappings = result.data;
+          } else {
+            this.sectionTeacherMappings = [];
+          }
+        },
+        error: () => {
+          this.isLoadingSectionTeachers = false;
+          this.sectionTeacherMappings = [];
+        }
+      });
+    } else {
+      this.isLoadingSectionTeachers = false;
     }
   }
 
@@ -6657,6 +7749,64 @@ export class AdminDashboardComponent implements OnInit {
     this.sectionStudents = [];
   }
 
+  viewSubjectStudents(subject: Subject): void {
+    this.selectedSubjectForView = subject;
+    this.subjectStudents = [];
+    this.isLoadingSubjectStudents = true;
+    this.showSubjectStudentsModal = true;
+    this.subjectTeacherMappingsForSubject = [];
+    this.isLoadingSubjectTeachers = true;
+    this.loadTeachers('all');
+
+    if (!subject.classId) {
+      this.isLoadingSubjectStudents = false;
+      this.isLoadingSubjectTeachers = false;
+      return;
+    }
+
+    this.studentService.getStudentsByClass(subject.classId).subscribe({
+      next: (result) => {
+        this.isLoadingSubjectStudents = false;
+        if (result.ok && result.students) {
+          this.subjectStudents = result.students;
+        } else {
+          this.subjectStudents = [];
+        }
+      },
+      error: (err) => {
+        this.isLoadingSubjectStudents = false;
+        console.error('Error loading subject students:', err);
+        this.subjectStudents = [];
+      }
+    });
+
+    if (subject.id) {
+      this.subjectService.getMappingsBySubject(subject.id).subscribe({
+        next: (result) => {
+          this.isLoadingSubjectTeachers = false;
+          if (result && result.ok && Array.isArray(result.data)) {
+            this.subjectTeacherMappingsForSubject = result.data;
+          } else {
+            this.subjectTeacherMappingsForSubject = [];
+          }
+        },
+        error: () => {
+          this.isLoadingSubjectTeachers = false;
+          this.subjectTeacherMappingsForSubject = [];
+        }
+      });
+    } else {
+      this.isLoadingSubjectTeachers = false;
+    }
+  }
+
+  closeSubjectStudentsModal(): void {
+    this.showSubjectStudentsModal = false;
+    this.selectedSubjectForView = null;
+    this.subjectStudents = [];
+    this.subjectTeacherMappingsForSubject = [];
+  }
+
   // Feature access control helper method
   isFeatureEnabled(featureName: string): boolean {
     if (!this.entity || !this.entity.features) {
@@ -6664,13 +7814,6 @@ export class AdminDashboardComponent implements OnInit {
     }
     // Check if feature exists and is enabled
     return this.entity.features[featureName] === true;
-  }
-
-  // Helper method to check if subjectSubTab is 'subjects' (to avoid TypeScript narrowing issue)
-  isSubjectsTab(): boolean {
-    const result = this.subjectSubTab === 'subjects';
-    console.log('isSubjectsTab() called: subjectSubTab =', this.subjectSubTab, ', result =', result);
-    return result;
   }
 
   trackBySubjectId(index: number, subject: Subject): any {

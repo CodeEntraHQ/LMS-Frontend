@@ -1,0 +1,1974 @@
+    <div class="page">
+      <!-- Top Nav -->
+      <header class="nav">
+        <div class="nav-left">
+          <a class="brand" routerLink="/teacher/dashboard">
+            <svg class="brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="brand-text">LMS</span>
+          </a>
+        </div>
+        <div class="nav-center">
+          <div class="breadcrumb">
+            <span class="breadcrumb-current">Dashboard</span>
+          </div>
+        </div>
+        <div class="nav-right">
+          <button class="icon-btn" (click)="toggleTheme()" aria-label="Toggle theme">
+            <svg *ngIf="isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2V4M12 20V22M4.93 4.93L6.34 6.34M17.66 17.66L19.07 19.07M2 12H4M20 12H22M4.93 19.07L6.34 17.66M17.66 6.34L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <svg *ngIf="!isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <button class="user-trigger" type="button" (click)="toggleUserMenu($event)" aria-label="Open user menu">
+            <div class="avatar" [style.background-image]="profileImage ? 'url(' + profileImage + ')' : 'none'">
+              <span *ngIf="!profileImage">{{ userInitial }}</span>
+            </div>
+            <div class="user-block">
+              <div class="user-name">{{ userName }}</div>
+              <div class="user-badge">TEACHER</div>
+            </div>
+          </button>
+
+          <div class="user-menu" *ngIf="isUserMenuOpen">
+            <div class="user-menu-head">
+              <div class="menu-avatar" [style.background-image]="profileImage ? 'url(' + profileImage + ')' : 'none'">
+                <span *ngIf="!profileImage">{{ userInitial }}</span>
+              </div>
+              <div class="menu-meta">
+                <div class="menu-name">{{ userName }}</div>
+                <div class="menu-email">{{ userEmail }}</div>
+              </div>
+            </div>
+            <div class="menu-divider"></div>
+            <button class="menu-item" (click)="goProfile()">
+              <span class="mi-ico">👤</span>
+              <span>Profile</span>
+            </button>
+            <button class="menu-item" (click)="logout()">
+              <span class="mi-ico">↩</span>
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main class="content">
+        <!-- Quick Stats Section -->
+        <div class="quick-stats-section">
+          <h2 class="section-title">📊 Quick Stats</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-icon">📚</div>
+              <div class="stat-info">
+                <div class="stat-label">Assigned classes</div>
+                <div class="stat-value">{{ quickStats.assignedClasses }}</div>
+            </div>
+              </div>
+            <div class="stat-card">
+              <div class="stat-icon">📖</div>
+              <div class="stat-info">
+                <div class="stat-label">Subjects</div>
+                <div class="stat-value">{{ quickStats.subjects }}</div>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-icon">📅</div>
+              <div class="stat-info">
+                <div class="stat-label">Today's lectures</div>
+                <div class="stat-value">{{ quickStats.todaysLectures }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+          <button class="nav-tab" [class.active]="activeTab === 'students'" (click)="activeTab = 'students'">
+            <span class="tab-emoji">👨‍🎓</span>
+            <span>My Students</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'study-material'" (click)="activeTab = 'study-material'">
+            <span class="tab-emoji">📚</span>
+            <span>Study Material</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'assignments'" (click)="onAssignmentsTabClick()">
+            <span class="tab-emoji">📝</span>
+            <span>Assignments</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'exams'" (click)="onExamsTabClick()">
+            <span class="tab-emoji">🧪</span>
+            <span>Exams</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'questions'" (click)="onQuestionsTabClick()">
+            <span class="tab-emoji">📚</span>
+            <span>Questions</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'attendance'" (click)="onAttendanceTabClick()">
+            <span class="tab-emoji">📅</span>
+            <span>Attendance</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'notices'" (click)="onNoticesTabClick()">
+            <span class="tab-emoji">📋</span>
+            <span>Notices</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'announcements'" (click)="onAnnouncementsTabClick()">
+            <span class="tab-emoji">📢</span>
+            <span>Announcements</span>
+          </button>
+          <button class="nav-tab" [class.active]="activeTab === 'reports'" (click)="activeTab = 'reports'">
+            <span class="tab-emoji">📈</span>
+            <span>Reports</span>
+          </button>
+        </div>
+
+        <!-- My Students Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'students'">
+          <div class="section-header">
+            <h2 class="section-title">👨‍🎓 My Students</h2>
+            <p class="section-subtitle">Subject-wise student list • Performance snapshot</p>
+          </div>
+          <div class="content-card">
+            <!-- Section & Subject Filter -->
+            <div class="students-filters">
+              <div class="filter-group">
+                <label>Course:</label>
+                <select class="form-select" [(ngModel)]="selectedCourseId" (ngModelChange)="onCourseChange()">
+                  <option [value]="null">All Courses</option>
+                  <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label>Class:</label>
+                <select class="form-select" [(ngModel)]="selectedClassId" (ngModelChange)="onClassChange()" [disabled]="!selectedCourseId">
+                  <option [value]="null">All Classes</option>
+                  <option *ngFor="let cl of classesList" [value]="cl.id">{{ cl.name }}</option>
+                </select>
+              </div>
+
+              <div class="filter-group">
+                <label>Select Section:</label>
+                <select 
+                  class="form-select" 
+                  [(ngModel)]="selectedSectionId"
+                  (ngModelChange)="onSectionChange()"
+                  [disabled]="isLoadingSections"
+                >
+                  <option [value]="null">All Sections</option>
+                  <option *ngFor="let section of assignedSections" [value]="section.id">
+                    {{ section.name }}
+                  </option>
+                </select>
+                <span *ngIf="isLoadingSections" class="loading-text">Loading sections...</span>
+              </div>
+
+              <div class="filter-group">
+                <label>Select Subject:</label>
+                <select class="form-select" [(ngModel)]="selectedSubjectFilterId" (ngModelChange)="filterStudentsBySubject()">
+                  <option [value]="null" disabled>-- Select Subject --</option>
+                  <option *ngFor="let subj of subjectsForFilter" [value]="subj.id">{{ subj.name }}</option>
+                </select>
+                <span *ngIf="subjectsForFilter.length === 0" class="loading-text">No subjects available</span>
+              </div>
+            </div>
+
+            <!-- Students with Performance Cards -->
+            <div class="students-grid">
+              <div *ngIf="isLoadingStudents" class="empty-state">
+                <p>Loading students...</p>
+              </div>
+              
+              <div class="student-card" *ngFor="let student of filteredStudents">
+                <div class="card-header">
+                  <div class="student-avatar">{{ ((student.firstName || '') + ' ' + (student.lastName || '')).trim().charAt(0) || 'S' }}</div>
+                  <div class="student-info">
+                        <div class="student-name">{{ (student.firstName || '') + ' ' + (student.lastName || '') }}</div>
+                        <div class="student-details">Roll No: {{ student.rollNumber || 'N/A' }}</div>
+                        <div class="student-details">Phone: {{ student.phone || 'N/A' }}</div>
+                        <div class="student-details">Email: {{ student.email || 'N/A' }}</div>
+                        <div class="student-details">Course: {{ getCourseName(student.courseId) }}</div>
+                        <div class="student-details">Class: {{ getClassName(student.classId) }}</div>
+                        <div class="student-details">Section: {{ getSectionName(student.sectionId) }}</div>
+                  </div>
+                </div>
+
+                <!-- Performance Snapshot -->
+                <div class="performance-snapshot" *ngIf="getStudentPerformance(student.id) as perf">
+                  <div class="performance-item">
+                    <span class="perf-label">Avg Marks:</span>
+                    <span class="perf-value">{{ perf.avgPercentage | number:'1.0-1' }}%</span>
+                  </div>
+                  <div class="performance-item">
+                    <span class="perf-label">Attendance:</span>
+                    <span class="perf-value" [class.good]="perf.avgAttendance >= 75" [class.warning]="perf.avgAttendance < 75">
+                      {{ perf.avgAttendance | number:'1.0-1' }}%
+                    </span>
+                  </div>
+                  <div class="performance-item">
+                    <span class="perf-label">Subjects:</span>
+                    <span class="perf-value">{{ perf.subjectCount }}</span>
+                  </div>
+                </div>
+
+                <!-- No Performance Data -->
+                <div class="performance-snapshot" *ngIf="!getStudentPerformance(student.id)">
+                  <p class="no-data">No performance data available</p>
+                </div>
+              </div>
+
+              <!-- Empty State -->
+              <div *ngIf="!isLoadingStudents && filteredStudents.length === 0" class="empty-state">
+                <p *ngIf="selectedSectionId">No students found in this section</p>
+                <p *ngIf="!selectedSectionId">Please select a section to view students</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Study Material Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'study-material'">
+          <div class="syllabus-layout">
+            <div class="syllabus-left">
+          <div class="section-header">
+                <div>
+            <h2 class="section-title">📚 Study Material</h2>
+                  <p class="section-subtitle">Upload syllabus, videos, notes, and PPTs for your assigned subjects</p>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Subject *</label>
+                  <select class="form-input" [(ngModel)]="selectedSubjectForContentId" (change)="onSubjectContentSubjectChange()">
+                    <option value="">Select subject</option>
+                    <option *ngFor="let subject of teacherAssignedSubjects" [value]="subject.id">
+                      {{ subject.subjectCode || '' }} - {{ subject.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Type *</label>
+                  <select class="form-input" [(ngModel)]="subjectContentForm.type">
+                    <option *ngFor="let type of subjectContentTypes" [value]="type">{{ type }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Title *</label>
+                  <input class="form-input" [(ngModel)]="subjectContentForm.title" placeholder="Title" />
+                </div>
+                <div class="form-group">
+                  <label>Unit / Chapter</label>
+                  <input class="form-input" [(ngModel)]="subjectContentForm.unit" placeholder="Unit / Chapter" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Topic</label>
+                  <input class="form-input" [(ngModel)]="subjectContentForm.topicName" placeholder="Topic name" />
+                </div>
+                <div class="form-group">
+                  <label>Section (optional)</label>
+                  <select class="form-input" [(ngModel)]="subjectContentForm.sectionId" [disabled]="!selectedSubjectForContentId" (ngModelChange)="onSectionChangeForContent($event)">
+                    <option [ngValue]="undefined">All Sections</option>
+                    <option *ngFor="let section of getAssignedSectionsForSubject(selectedSubjectForContentId)" [ngValue]="section.id">{{ section.name }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-input" rows="3" [(ngModel)]="subjectContentForm.description" placeholder="Description"></textarea>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Upload File (PDF/PPT/Video)</label>
+                  <input type="file" class="form-input" (change)="onSubjectContentFileSelect($event)" accept=".pdf,.ppt,.pptx,video/*" />
+                  <small class="form-hint" *ngIf="subjectContentForm.fileName">Selected: {{ subjectContentForm.fileName }}</small>
+                </div>
+                <div class="form-group">
+                  <label>Video / Link URL</label>
+                  <input class="form-input" [(ngModel)]="subjectContentForm.linkUrl" placeholder="YouTube / Drive link" />
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Visible to Students</label>
+                  <select class="form-input" [(ngModel)]="subjectContentForm.visibleToStudents">
+                    <option [ngValue]="true">Yes</option>
+                    <option [ngValue]="false">No</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Visible to Parents</label>
+                  <select class="form-input" [(ngModel)]="subjectContentForm.visibleToParents">
+                    <option [ngValue]="true">Yes</option>
+                    <option [ngValue]="false">No</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-actions">
+                <button class="btn-primary" (click)="submitSubjectContent()">Upload</button>
+                <button class="btn-secondary" (click)="resetSubjectContentForm()">Reset</button>
+              </div>
+            </div>
+
+            <div class="syllabus-right">
+              <div class="form-header" style="margin: 0 0 12px;">
+                <h3>Uploaded Content</h3>
+                <button class="btn-secondary" type="button" (click)="showContentFilters = !showContentFilters">
+                  {{ showContentFilters ? 'Hide Filters' : 'Filter' }}
+            </button>
+            </div>
+
+              <div *ngIf="showContentFilters" class="form-row" style="margin: 0 0 16px;">
+                <div class="form-group">
+                  <label>Subject</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.subjectId" (change)="onContentSubjectFilterChange()">
+                    <option value="">All</option>
+                    <option *ngFor="let subject of teacherAssignedSubjects" [value]="subject.id">
+                      {{ subject.subjectCode || '' }} - {{ subject.name }}
+                    </option>
+                  </select>
+              </div>
+                <div class="form-group">
+                  <label>Type</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.type">
+                    <option value="">All</option>
+                    <option *ngFor="let type of contentFilterOptions.types" [value]="type">{{ type }}</option>
+                  </select>
+                  </div>
+                <div class="form-group">
+                  <label>Unit</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.unit">
+                    <option value="">All</option>
+                    <option *ngFor="let unit of contentFilterOptions.units" [value]="unit">{{ unit }}</option>
+                  </select>
+                </div>
+                </div>
+              <div *ngIf="showContentFilters" class="form-row" style="margin: 0 0 16px;">
+                <div class="form-group">
+                  <label>Topic</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.topic">
+                    <option value="">All</option>
+                    <option *ngFor="let topic of contentFilterOptions.topics" [value]="topic">{{ topic }}</option>
+                  </select>
+              </div>
+                <div class="form-group">
+                  <label>Visibility (Students)</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.visibleStudents">
+                    <option value="">All</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+              </div>
+                <div class="form-group">
+                  <label>Visibility (Parents)</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.visibleParents">
+                    <option value="">All</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </div>
+              </div>
+              <div *ngIf="showContentFilters" class="form-row" style="margin: 0 0 16px;">
+                <div class="form-group">
+                  <label>Status</label>
+                  <select class="form-input" [(ngModel)]="contentSearch.status">
+                    <option value="">All</option>
+                    <option *ngFor="let status of contentFilterOptions.statuses" [value]="status">{{ status }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div *ngIf="isLoadingTeacherContents" class="loading">Loading content...</div>
+              <div *ngIf="!isLoadingTeacherContents && filteredTeacherContents.length === 0" class="empty-state">
+                <p>No content uploaded for your assigned subjects.</p>
+              </div>
+              <div *ngIf="!isLoadingTeacherContents && filteredTeacherContents.length > 0" class="attendance-summary-table study-material-table">
+                <div class="summary-table-header study-material-header">
+                  <span>Type</span>
+                  <span>Title</span>
+                  <span>Unit</span>
+                  <span>Topic</span>
+                  <span>File/Link</span>
+                  <span>Visibility</span>
+                  <span>Actions</span>
+                </div>
+                <div class="summary-table-row study-material-row" *ngFor="let content of filteredTeacherContents">
+                  <span>
+                    <span class="status-badge" style="background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59, 130, 246, 0.3); color: #3b82f6; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase;">
+                      {{ content.type }}
+                    </span>
+                  </span>
+                  <span class="summary-name">{{ content.title }}</span>
+                  <span>{{ content.unit || 'N/A' }}</span>
+                  <span>{{ content.topicName || 'N/A' }}</span>
+                  <span>
+                    <a *ngIf="content.linkUrl" [href]="content.linkUrl" target="_blank" (click)="$event.stopPropagation()" style="color: var(--accent-green); text-decoration: none; font-weight: 700;">Open Link</a>
+                    <a *ngIf="content.fileUrl && !content.fileData" [href]="content.fileUrl" target="_blank" (click)="$event.stopPropagation()" style="color: var(--accent-green); text-decoration: none; font-weight: 700;">Open File</a>
+                    <a *ngIf="content.fileData" [href]="content.fileData" [download]="content.fileName || 'file'" (click)="$event.stopPropagation()" style="color: var(--accent-green); text-decoration: none; font-weight: 700;">Download</a>
+                    <span *ngIf="!content.linkUrl && !content.fileUrl && !content.fileData && content.fileName" style="color: var(--text-gray);">{{ content.fileName }}</span>
+                    <span *ngIf="!content.linkUrl && !content.fileUrl && !content.fileData && !content.fileName" style="color: var(--text-gray);">N/A</span>
+                  </span>
+                  <span style="display: flex; flex-direction: column; gap: 6px;">
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                      <span style="color: var(--text-gray); font-size: 12px; font-weight: 600;">Students:</span>
+                      <span [style.color]="content.visibleToStudents ? 'var(--accent-green)' : '#ef4444'" style="font-weight: 700; font-size: 13px;">
+                        {{ content.visibleToStudents ? 'Yes' : 'No' }}
+                      </span>
+                    </span>
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                      <span style="color: var(--text-gray); font-size: 12px; font-weight: 600;">Parents:</span>
+                      <span [style.color]="content.visibleToParents ? 'var(--accent-green)' : '#ef4444'" style="font-weight: 700; font-size: 13px;">
+                        {{ content.visibleToParents ? 'Yes' : 'No' }}
+                      </span>
+                    </span>
+                  </span>
+                  <span style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-view" style="padding: 6px 12px; font-size: 12px;" (click)="openSubjectContentView(content)">View</button>
+                    <button class="btn-edit" style="padding: 6px 12px; font-size: 12px;" (click)="openSubjectContentEdit(content)" *ngIf="canEditContent(content)">Edit</button>
+                    <button class="btn-delete" style="padding: 6px 12px; font-size: 12px;" (click)="deleteSubjectContent(content)" *ngIf="content.id && canEditContent(content)">Delete</button>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assignments Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'assignments'">
+          <div class="section-header">
+            <h2 class="section-title">📝 Assignments</h2>
+            <p class="section-subtitle">Create assignment • View submissions • Give marks & feedback</p>
+            <button class="btn-primary" (click)="openCreateAssignmentModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Create Assignment
+            </button>
+          </div>
+          <div class="content-card">
+            <div *ngIf="isLoadingAssignments" class="loading">Loading assignments...</div>
+            <div *ngIf="assignments.length === 0 && !isLoadingAssignments" class="empty-state">
+              <p>No assignments created yet</p>
+                  </div>
+            <div *ngIf="!isLoadingAssignments && assignments.length > 0" class="attendance-summary-table">
+              <div class="summary-table-header">
+                <span>Title</span>
+                <span>Subject</span>
+                <span>Class</span>
+                <span>Due Date</span>
+                <span>Status</span>
+                <span>Submissions</span>
+                <span>Actions</span>
+                </div>
+              <div class="summary-table-row" *ngFor="let assignment of assignments">
+                <span class="summary-name">{{ assignment.title }}</span>
+                <span>{{ getSubjectName(assignment.subjectId) }}</span>
+                <span>{{ getClassName(assignment.classId) }}</span>
+                <span>{{ formatDate(assignment.dueDate || assignment.extendedDueDate) }}</span>
+                <span>
+                  <span class="status-badge" [class.status-active]="assignment.status === 'active'"
+                        [class.status-draft]="assignment.status === 'draft'"
+                        [class.status-closed]="assignment.status === 'closed'">
+                    {{ assignment.status || 'active' }}
+                  </span>
+                </span>
+                <span>
+                  {{ assignment.submittedCount || 0 }}/{{ assignment.totalStudents || 0 }}
+                </span>
+                <span style="display: flex; gap: 8px; flex-wrap: wrap;">
+                  <button class="btn-secondary" style="padding: 6px 12px; font-size: 12px;" (click)="viewSubmissions(assignment)">View</button>
+                  <button class="action-btn" style="padding: 6px 12px; font-size: 12px;" (click)="editAssignment(assignment)">Edit</button>
+                  <button class="action-btn delete" style="padding: 6px 12px; font-size: 12px;" (click)="deleteAssignment(assignment)">Delete</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          </div>
+
+        <!-- Exams Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'exams'">
+          <div class="section-header">
+            <h2 class="section-title">🧪 Exams</h2>
+            <p class="section-subtitle">Create test (if allowed) • Evaluate answers</p>
+            <button class="btn-primary" (click)="openCreateExamModal()" *ngIf="canCreateExam">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Create Exam
+            </button>
+                </div>
+          <div class="content-card">
+            <div class="exams-list">
+              <div *ngIf="isLoadingExams" class="empty-state"><p>Loading exams...</p></div>
+              <div class="exam-item" *ngFor="let exam of exams">
+                <div class="exam-header">
+                  <div>
+                    <div class="exam-title">{{ exam.name }}</div>
+                    <div class="exam-meta">{{ getClassName(exam.classId) }} • {{ getTeacherSubjectName(exam.subjectId) }} • Date: {{ formatDate(exam.examDate) }}</div>
+                  </div>
+                  <button class="btn-secondary" (click)="evaluateExam(exam)" *ngIf="exam.evaluationPending > 0">Evaluate ({{ exam.evaluationPending }})</button>
+                  <span *ngIf="exam.evaluationPending === 0" class="exam-status-badge">All evaluated</span>
+                </div>
+                <div class="exam-actions">
+                  <button class="action-btn" (click)="viewExam(exam)">View</button>
+                  <button class="action-btn" (click)="editExam(exam)" *ngIf="canEditExam(exam)">Edit</button>
+                  <button class="action-btn delete" (click)="deleteExam(exam)" *ngIf="canEditExam(exam)">Delete</button>
+                </div>
+              </div>
+              <div *ngIf="!isLoadingExams && exams.length === 0" class="empty-state">
+                <p>No exams yet. Create one or wait for admin to assign you.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Questions Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'questions'">
+          <div class="section-header">
+            <h2 class="section-title">📚 Question Bank</h2>
+            <p class="section-subtitle">Create questions for your subjects • Use in exams</p>
+            <button class="btn-primary" (click)="openCreateQuestionModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Create Question
+            </button>
+          </div>
+          <div class="content-card">
+            <div class="form-row" style="margin-bottom: 16px;">
+              <div class="form-group">
+                <label>Filter by Subject</label>
+                <select class="form-input" [(ngModel)]="questionFilterSubjectId" (ngModelChange)="loadQuestions()">
+                  <option [value]="null">All</option>
+                  <option *ngFor="let s of teacherAssignedSubjects" [value]="s.id">{{ s.subjectCode }} - {{ s.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Search Chapter/Unit</label>
+                <input type="text" class="form-input" [(ngModel)]="questionFilterChapter" placeholder="e.g. Chapter 1" (ngModelChange)="loadQuestions()" />
+              </div>
+            </div>
+            <div *ngIf="isLoadingQuestions" class="empty-state"><p>Loading questions...</p></div>
+            <div *ngIf="!isLoadingQuestions && questions.length === 0" class="empty-state">
+              <p>No questions yet. Create questions to build your question bank.</p>
+            </div>
+            <div *ngIf="!isLoadingQuestions && questions.length > 0" class="attendance-summary-table">
+              <div class="summary-table-header">
+                <span>Question</span>
+                <span>Subject</span>
+                <span>Type</span>
+                <span>Marks</span>
+                <span>Difficulty</span>
+                <span>Status</span>
+                <span>Actions</span>
+              </div>
+              <div class="summary-table-row" *ngFor="let q of questions">
+                <span class="summary-name">{{ (q.questionText || '').substring(0, 60) }}{{ (q.questionText || '').length > 60 ? '...' : '' }}</span>
+                <span>{{ getTeacherSubjectName(q.subjectId) }}</span>
+                <span>{{ q.questionType }}</span>
+                <span>{{ q.marks }}</span>
+                <span>{{ q.difficulty || 'medium' }}</span>
+                <span><span class="status-badge" [class.status-active]="q.status === 'approved'">{{ q.status || 'pending' }}</span></span>
+                <span class="notice-actions">
+                  <button class="action-btn" (click)="editQuestion(q)">Edit</button>
+                  <button class="action-btn delete" (click)="deleteQuestion(q)">Delete</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attendance Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'attendance'">
+          <div class="section-header">
+            <h2 class="section-title">📅 Attendance</h2>
+            <p class="section-subtitle">Mark daily attendance • View history • Student reports</p>
+          </div>
+
+          <!-- Attendance View Toggle -->
+          <div class="attendance-view-toggle">
+            <button class="toggle-btn" [class.active]="attendanceView === 'mark'" (click)="attendanceView = 'mark'">
+              Mark Attendance
+            </button>
+            <button class="toggle-btn" [class.active]="attendanceView === 'history'" (click)="attendanceView = 'history'">
+              History
+            </button>
+            <button class="toggle-btn" [class.active]="attendanceView === 'student-wise'" (click)="attendanceView = 'student-wise'">
+              Student Reports
+            </button>
+          </div>
+
+          <!-- Mark Attendance View -->
+          <div class="content-card" *ngIf="attendanceView === 'mark'">
+            <div class="attendance-filters">
+              <div class="filter-group">
+                <label>Subject:</label>
+                <select class="form-select" [(ngModel)]="selectedAttendanceSubject" (ngModelChange)="onAttendanceSubjectChange()">
+                  <option [ngValue]="null">Select Subject</option>
+                  <option *ngFor="let subject of assignedSubjectsForAttendance" [ngValue]="subject">
+                    {{ subject.subjectName }} - {{ subject.className }}<span *ngIf="subject.sectionName"> ({{ subject.sectionName }})</span>
+                  </option>
+                    </select>
+                  </div>
+              <div class="filter-group" *ngIf="selectedAttendanceSubject">
+                <label>Date:</label>
+                <input type="date" class="form-input" [(ngModel)]="attendanceDate" />
+                  </div>
+              <div class="filter-group">
+                <button class="btn-primary" (click)="loadAttendanceSession()" [disabled]="!selectedAttendanceSubject || isLoadingAttendance">
+                  <span *ngIf="!isLoadingAttendance">Load Students</span>
+                  <span *ngIf="isLoadingAttendance">Loading...</span>
+                </button>
+                      </div>
+            </div>
+
+            <!-- Attendance Status Indicator -->
+            <div class="attendance-status-indicator" *ngIf="currentAttendanceSession">
+              <div class="status-item">
+                <span class="status-label">Status:</span>
+                <span class="status-badge" [class.completed]="currentAttendanceSession.status === 'completed'" [class.open]="currentAttendanceSession.status === 'open'">
+                  {{ currentAttendanceSession.status === 'completed' ? 'Marked' : 'Pending' }}
+                </span>
+              </div>
+              <div class="status-item" *ngIf="currentAttendanceSession.isLocked">
+                <span class="status-label">Lock Status:</span>
+                <span class="status-badge locked">Locked</span>
+              </div>
+              <div class="status-item" *ngIf="!currentAttendanceSession.isLocked && currentAttendanceSession.lockDate">
+                <span class="status-label">Can Edit Until:</span>
+                <span class="status-value">{{ formatDate(currentAttendanceSession.lockDate) }}</span>
+              </div>
+            </div>
+
+            <!-- Student List -->
+            <div class="attendance-student-list" *ngIf="attendanceStudents.length > 0">
+              <div class="bulk-actions">
+                <button class="btn-secondary" (click)="markAllPresent()">Mark All Present</button>
+                <button class="btn-secondary" (click)="resetAttendance()">Reset</button>
+                <div class="attendance-summary">
+                  <span>Present: <strong>{{ getPresentCount() }}</strong></span>
+                  <span>Absent: <strong>{{ getAbsentCount() }}</strong></span>
+                  <span>Total: <strong>{{ attendanceStudents.length }}</strong></span>
+                </div>
+              </div>
+
+              <div class="attendance-item" *ngFor="let student of attendanceStudents">
+                <div class="student-info">
+                  <div class="student-name">{{ student.name }}</div>
+                  <div class="student-roll">Roll No: {{ student.rollNumber || 'N/A' }}</div>
+                </div>
+                <div class="attendance-options">
+                  <button class="attendance-btn present" 
+                          [class.active]="student.status === 'present'" 
+                          [disabled]="currentAttendanceSession?.isLocked"
+                          (click)="markAttendance(student, 'present')">
+                    Present
+                  </button>
+                  <button class="attendance-btn absent" 
+                          [class.active]="student.status === 'absent'" 
+                          [disabled]="currentAttendanceSession?.isLocked"
+                          (click)="markAttendance(student, 'absent')">
+                    Absent
+                  </button>
+                </div>
+              </div>
+
+              <div class="attendance-actions">
+                <button class="btn-primary" 
+                        (click)="saveAttendance()" 
+                        [disabled]="currentAttendanceSession?.isLocked || isSavingAttendance">
+                  <span *ngIf="!isSavingAttendance">Save Attendance</span>
+                  <span *ngIf="isSavingAttendance">Saving...</span>
+                </button>
+                <button class="btn-secondary" (click)="openCorrectionModal()" *ngIf="currentAttendanceSession?.isLocked">
+                  Request Correction
+                </button>
+              </div>
+            </div>
+
+            <div class="empty-state" *ngIf="attendanceStudents.length === 0 && !isLoadingAttendance">
+              <p>Select a subject and date, then click "Load Students" to mark attendance</p>
+            </div>
+          </div>
+
+          <!-- History View -->
+          <div class="content-card" *ngIf="attendanceView === 'history'">
+            <div class="history-filters">
+              <div class="filter-group">
+                <label>Subject:</label>
+                <select class="form-select" [(ngModel)]="historySubjectId" (ngModelChange)="loadAttendanceHistory()">
+                  <option [ngValue]="null">All Subjects</option>
+                  <option *ngFor="let subject of assignedSubjectsForAttendance" [ngValue]="subject.subjectId">
+                    {{ subject.subjectName }}
+                  </option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>From Date:</label>
+                <input type="date" class="form-input" [(ngModel)]="historyFromDate" (ngModelChange)="loadAttendanceHistory()" />
+              </div>
+              <div class="filter-group">
+                <label>To Date:</label>
+                <input type="date" class="form-input" [(ngModel)]="historyToDate" (ngModelChange)="loadAttendanceHistory()" />
+              </div>
+            </div>
+
+            <div class="attendance-history-list" *ngIf="attendanceHistory.length > 0">
+              <div class="history-item" *ngFor="let record of attendanceHistory">
+                <div class="history-header">
+                  <div>
+                    <div class="history-subject">{{ record.subjectName }}</div>
+                    <div class="history-date">{{ formatDate(record.attendanceDate) }}</div>
+                  </div>
+                  <div class="history-status" [class.completed]="record.status === 'completed'" [class.locked]="record.status === 'locked'">
+                    {{ record.status }}
+                  </div>
+                </div>
+                <div class="history-stats">
+                  <span>Present: <strong>{{ record.presentCount }}</strong></span>
+                  <span>Absent: <strong>{{ record.absentCount }}</strong></span>
+                  <span>Total: <strong>{{ record.totalCount }}</strong></span>
+                </div>
+                <button class="btn-secondary" (click)="viewHistoryDetails(record)" *ngIf="record.status !== 'locked'">
+                  View Details
+                </button>
+              </div>
+            </div>
+
+            <div class="empty-state" *ngIf="attendanceHistory.length === 0 && !isLoadingHistory">
+              <p>No attendance history found</p>
+            </div>
+          </div>
+
+          <!-- Student-wise View -->
+          <div class="content-card" *ngIf="attendanceView === 'student-wise'">
+            <div class="student-wise-filters">
+              <div class="filter-group">
+                <label>Subject:</label>
+                <select class="form-select" [(ngModel)]="studentWiseSubjectId" (ngModelChange)="loadStudentWiseAttendance()">
+                  <option [ngValue]="null">Select Subject</option>
+                  <option *ngFor="let subject of assignedSubjectsForAttendance" [ngValue]="subject.subjectId">
+                    {{ subject.subjectName }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="student-wise-list" *ngIf="studentWiseAttendance.length > 0">
+              <div class="student-attendance-item" 
+                   *ngFor="let item of studentWiseAttendance"
+                   [class.low-attendance]="item.percentage < 75">
+                <div class="student-info">
+                  <div class="student-name">{{ item.name }}</div>
+                  <div class="student-roll">Roll No: {{ item.rollNumber }}</div>
+                </div>
+                <div class="attendance-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Present:</span>
+                    <span class="stat-value">{{ item.presentCount }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Total:</span>
+                    <span class="stat-value">{{ item.totalCount }}</span>
+                  </div>
+                  <div class="stat-item">
+                    <span class="stat-label">Percentage:</span>
+                    <span class="stat-value" [class.good]="item.percentage >= 75" [class.warning]="item.percentage < 75">
+                      {{ item.percentage | number:'1.0-1' }}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="empty-state" *ngIf="studentWiseAttendance.length === 0 && !isLoadingStudentWise">
+              <p>Select a subject to view student-wise attendance</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Correction Request Modal -->
+        <div class="modal-overlay" *ngIf="showCorrectionModal" (click)="showCorrectionModal = false">
+          <div class="modal-content" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h2>Request Attendance Correction</h2>
+              <button class="close-btn" (click)="showCorrectionModal = false">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="correction-info">
+                <p><strong>Session:</strong> {{ selectedAttendanceSubject?.subjectName }} - {{ formatDate(attendanceDate) }}</p>
+                <p class="info-text">This attendance session is locked. Please select the student and the correction you want to request.</p>
+              </div>
+              
+              <div class="form-group">
+                <label>Select Student:</label>
+                <select class="form-input" [(ngModel)]="correctionForm.studentId">
+                  <option [value]="null">Select Student</option>
+                  <option *ngFor="let student of attendanceStudents" [value]="student.id">
+                    {{ student.name }} ({{ student.rollNumber }})
+                  </option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label>Current Status:</label>
+                <div class="current-status" *ngIf="getSelectedStudentStatus()">
+                  <span class="status-badge" [class.present]="getSelectedStudentStatus() === 'present'" [class.absent]="getSelectedStudentStatus() === 'absent'">
+                    {{ getSelectedStudentStatus() }}
+                  </span>
+                </div>
+                <div class="no-status" *ngIf="!getSelectedStudentStatus()">Not marked</div>
+              </div>
+              
+              <div class="form-group">
+                <label>Requested Status:</label>
+                <select class="form-input" [(ngModel)]="correctionForm.requestedStatus">
+                  <option value="present">Present</option>
+                  <option value="absent">Absent</option>
+                </select>
+              </div>
+              
+              <div class="form-group">
+                <label>Reason for Correction *</label>
+                <textarea class="form-input" rows="4" [(ngModel)]="correctionForm.reason" 
+                          placeholder="Please provide a reason for this correction request..."></textarea>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" (click)="showCorrectionModal = false">Cancel</button>
+              <button class="btn-primary" (click)="submitCorrectionRequest()" [disabled]="!correctionForm.studentId || !correctionForm.reason || isSubmittingCorrection">
+                <span *ngIf="!isSubmittingCorrection">Submit Request</span>
+                <span *ngIf="isSubmittingCorrection">Submitting...</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Attendance History Details Modal -->
+        <div class="modal-overlay" *ngIf="showHistoryDetailsModal" (click)="showHistoryDetailsModal = false">
+          <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+            <div class="modal-header">
+              <h2>Attendance Details</h2>
+              <button class="close-btn" (click)="showHistoryDetailsModal = false">&times;</button>
+            </div>
+            <div class="modal-body" *ngIf="historyDetailsSession">
+              <div class="correction-info">
+                <p><strong>Subject:</strong> {{ historyDetailsSession.subjectName || selectedAttendanceSubject?.subjectName }}</p>
+                <p><strong>Date:</strong> {{ formatDate(historyDetailsSession.attendanceDate) }}</p>
+                <p><strong>Status:</strong> {{ historyDetailsSession.status }}</p>
+              </div>
+
+              <div *ngIf="historyDetailsEntries.length > 0" class="attendance-history-details">
+                <div class="history-details-header">
+                  <span>Student</span>
+                  <span>Roll No</span>
+                  <span>Status</span>
+                  <span>Marked At</span>
+                </div>
+                <div class="history-details-row" *ngFor="let entry of historyDetailsEntries">
+                  <span>{{ entry.studentName || 'Unknown' }}</span>
+                  <span>{{ entry.rollNumber || 'N/A' }}</span>
+                  <span>
+                    <span class="status-badge"
+                          [ngClass]="{'completed': entry.status === 'present', 'locked': entry.status === 'absent'}">
+                      {{ entry.status || 'N/A' }}
+                    </span>
+                  </span>
+                  <span>{{ formatDate(entry.markedAt) }} {{ formatTime(entry.markedAt) }}</span>
+                </div>
+              </div>
+
+              <div class="empty-state" *ngIf="historyDetailsEntries.length === 0">
+                <p>No entries found for this session.</p>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-secondary" (click)="showHistoryDetailsModal = false">Close</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notices Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'notices'">
+          <div class="section-header">
+            <h2 class="section-title">📋 Notices</h2>
+            <p class="section-subtitle">Received notices from admin / institution</p>
+          </div>
+          <div class="content-card">
+            <div *ngIf="isLoadingNotices" class="empty-state">
+              <p>Loading notices...</p>
+            </div>
+            <div *ngIf="!isLoadingNotices && teacherNotices.length === 0" class="empty-state">
+              <p>No notices available.</p>
+            </div>
+            <div *ngIf="!isLoadingNotices && teacherNotices.length > 0" class="attendance-summary-table">
+              <div class="summary-table-header">
+                <span>Title</span>
+                <span>Type</span>
+                <span>Publish Date</span>
+                <span>Status</span>
+              </div>
+              <div class="summary-table-row notice-row" *ngFor="let notice of teacherNotices" (click)="viewNotice(notice)" style="cursor: pointer;">
+                <span class="summary-name">
+                  {{ notice.title }}
+                  <span *ngIf="!notice.isRead" style="margin-left: 8px; font-size: 11px; color: #facc15;">● New</span>
+                </span>
+                <span>{{ notice.noticeType || 'General' }}</span>
+                <span>{{ notice.publishAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                <span>
+                  <span class="status-badge" [class.status-active]="notice.isRead" [class.status-inactive]="!notice.isRead">
+                    {{ notice.isRead ? 'Read' : 'Unread' }}
+                  </span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Announcements Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'announcements'">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">📢 Announcements</h2>
+              <p class="section-subtitle">Create class / subject-level announcements for your assigned classes</p>
+            </div>
+            <button class="btn-primary" (click)="openCreateAnnouncementModal()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+              Create Announcement
+            </button>
+          </div>
+
+          <!-- Filters -->
+          <div class="form-header" style="margin: 16px 0 12px;">
+            <h3>Filters</h3>
+            <button class="btn-secondary" type="button" (click)="showAnnouncementFilters = !showAnnouncementFilters">
+              {{ showAnnouncementFilters ? 'Hide Filters' : 'Filter' }}
+            </button>
+          </div>
+          <div *ngIf="showAnnouncementFilters" class="form-row" style="margin: 0 0 16px;">
+            <div class="form-group">
+              <label>Subject</label>
+              <select class="form-input" [(ngModel)]="announcementFilters.subjectId" (change)="onAnnouncementSubjectFilterChange()">
+                <option value="">All</option>
+                <option *ngFor="let subject of teacherAssignedSubjects" [value]="subject.id">
+                  {{ subject.subjectCode || '' }} - {{ subject.name }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select class="form-input" [(ngModel)]="announcementFilters.status">
+                <option value="">All</option>
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="scheduled">Scheduled</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Type</label>
+              <select class="form-input" [(ngModel)]="announcementFilters.type">
+                <option value="">All</option>
+                <option *ngFor="let type of announcementTypes" [value]="type">{{ type }}</option>
+              </select>
+            </div>
+            <div class="form-actions" style="margin-top: 24px;">
+              <button class="btn-primary" (click)="loadAnnouncements()">Apply Filters</button>
+              <button class="btn-secondary" (click)="resetAnnouncementFilters()">Reset</button>
+            </div>
+          </div>
+
+          <!-- Announcements List -->
+          <div *ngIf="isLoadingAnnouncements" class="loading">Loading announcements...</div>
+          <div *ngIf="!isLoadingAnnouncements && announcements.length === 0" class="empty-state">
+            <p>No announcements created yet. Create your first announcement!</p>
+          </div>
+          <div *ngIf="!isLoadingAnnouncements && announcements.length > 0" class="announcements-table">
+            <div class="announcements-table-header">
+              <span>Title</span>
+              <span>Subject</span>
+              <span>Type</span>
+              <span>Status</span>
+              <span>Publish Date</span>
+              <span>Actions</span>
+            </div>
+            <div class="announcements-table-row" *ngFor="let announcement of announcements">
+              <span class="announcement-title-cell">
+                <strong>{{ announcement.title }}</strong>
+                <a *ngIf="announcement.attachmentName && announcement.attachmentData" 
+                   [href]="announcement.attachmentData" 
+                   [download]="announcement.attachmentName"
+                   (click)="$event.stopPropagation()"
+                   class="attachment-link">
+                  📎 {{ announcement.attachmentName }}
+                </a>
+              </span>
+              <span class="announcement-subject-cell">{{ announcement.subjectId ? getTeacherSubjectName(announcement.subjectId) : 'N/A' }}</span>
+              <span class="announcement-type-cell">{{ announcement.announcementType || 'N/A' }}</span>
+              <span class="announcement-status-cell">
+                <span class="status-badge" 
+                      [class.status-active]="announcement.status === 'published'"
+                      [class.status-inactive]="announcement.status === 'draft'">
+                  {{ announcement.status || 'draft' }}
+                </span>
+              </span>
+              <span class="announcement-date-cell">{{ formatAnnouncementDate(announcement.publishAt) || 'N/A' }}</span>
+              <span class="announcement-actions-cell">
+                <button class="btn-view" (click)="viewAnnouncement(announcement)">View</button>
+                <button class="btn-edit" (click)="editAnnouncement(announcement)">Edit</button>
+                <button class="btn-delete" (click)="deleteAnnouncement(announcement)">Delete</button>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div class="tab-content" *ngIf="activeTab === 'reports'">
+          <div class="section-header">
+            <h2 class="section-title">📈 Reports</h2>
+            <p class="section-subtitle">Student performance • Attendance summary</p>
+                </div>
+          <div class="reports-grid">
+            <div class="report-card">
+              <h3 class="report-title">Student Performance</h3>
+              <div class="report-content">
+                <div class="performance-item" *ngFor="let perf of studentPerformance">
+                  <div class="perf-student">{{ perf.studentName }}</div>
+                  <div class="perf-score">Score: {{ perf.averageScore }}%</div>
+                  </div>
+                <div *ngIf="studentPerformance.length === 0" class="empty-state">
+                  <p>No performance data available</p>
+                  </div>
+                  </div>
+                  </div>
+            <div class="report-card">
+              <h3 class="report-title">Attendance Summary</h3>
+              <div class="report-content">
+                <div class="attendance-summary-item" *ngFor="let summary of attendanceSummary">
+                  <div class="summary-class">{{ summary.class }}</div>
+                  <div class="summary-stats">
+                    <span>Present: {{ summary.present }}</span>
+                    <span>Absent: {{ summary.absent }}</span>
+                    <span>Total: {{ summary.total }}</span>
+                </div>
+              </div>
+                <div *ngIf="attendanceSummary.length === 0" class="empty-state">
+                  <p>No attendance data available</p>
+            </div>
+          </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Subject Content Modal (View/Edit) -->
+      <div class="modal-overlay" *ngIf="showSubjectContentModal" (click)="closeSubjectContentModal()">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ subjectContentModalMode === 'edit' ? 'Edit Content' : 'Content Details' }}</h2>
+            <button class="close-btn" (click)="closeSubjectContentModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div *ngIf="subjectContentModalMode === 'view' && selectedSubjectContent" class="student-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Subject</span>
+                <span class="detail-value">{{ getTeacherSubjectName(selectedSubjectContent.subjectId) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type</span>
+                <span class="detail-value">{{ selectedSubjectContent.type }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Title</span>
+                <span class="detail-value">{{ selectedSubjectContent.title }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Unit</span>
+                <span class="detail-value">{{ selectedSubjectContent.unit || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Topic</span>
+                <span class="detail-value">{{ selectedSubjectContent.topicName || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">{{ selectedSubjectContent.status || 'active' }}</span>
+              </div>
+              <div class="detail-item full-width">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">{{ selectedSubjectContent.description || 'N/A' }}</span>
+              </div>
+              <div class="detail-item full-width" *ngIf="selectedSubjectContent.linkUrl">
+                <span class="detail-label">Link</span>
+                <span class="detail-value"><a [href]="selectedSubjectContent.linkUrl" target="_blank">Open</a></span>
+              </div>
+              <div class="detail-item full-width" *ngIf="selectedSubjectContent.fileUrl && !selectedSubjectContent.fileData">
+                <span class="detail-label">File URL</span>
+                <span class="detail-value"><a [href]="selectedSubjectContent.fileUrl" target="_blank">Open</a></span>
+              </div>
+              <div class="detail-item full-width" *ngIf="selectedSubjectContent.fileData">
+                <span class="detail-label">File</span>
+                <span class="detail-value">
+                  <a [href]="selectedSubjectContent.fileData" [download]="selectedSubjectContent.fileName || 'file'">Download</a>
+                </span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Visible to Students</span>
+                <span class="detail-value">{{ selectedSubjectContent.visibleToStudents ? 'Yes' : 'No' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Visible to Parents</span>
+                <span class="detail-value">{{ selectedSubjectContent.visibleToParents ? 'Yes' : 'No' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Teacher Editable</span>
+                <span class="detail-value">{{ selectedSubjectContent.teacherEditable ? 'Yes' : 'No' }}</span>
+              </div>
+            </div>
+
+            <div *ngIf="subjectContentModalMode === 'edit'">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Subject</label>
+                  <select class="form-input" [(ngModel)]="subjectContentEditForm.subjectId" disabled>
+                    <option *ngFor="let subject of teacherAssignedSubjects" [value]="subject.id">
+                      {{ subject.subjectCode || '' }} - {{ subject.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Type</label>
+                  <select class="form-input" [(ngModel)]="subjectContentEditForm.type">
+                    <option *ngFor="let type of subjectContentTypes" [value]="type">{{ type }}</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Title</label>
+                  <input class="form-input" [(ngModel)]="subjectContentEditForm.title" placeholder="Title" />
+                </div>
+                <div class="form-group">
+                  <label>Unit / Chapter</label>
+                  <input class="form-input" [(ngModel)]="subjectContentEditForm.unit" placeholder="Unit / Chapter" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Topic</label>
+                  <input class="form-input" [(ngModel)]="subjectContentEditForm.topicName" placeholder="Topic name" />
+                </div>
+                <div class="form-group">
+                  <label>Section (optional)</label>
+                  <select class="form-input" [(ngModel)]="subjectContentEditForm.sectionId" [disabled]="!subjectContentEditForm.classId">
+                    <option [ngValue]="undefined">All Sections</option>
+                    <option *ngFor="let section of getAssignedSectionsForSubject(subjectContentEditForm.subjectId)" [ngValue]="section.id">
+                      {{ section.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-input" rows="3" [(ngModel)]="subjectContentEditForm.description" placeholder="Description"></textarea>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Upload File (PDF/PPT/Video)</label>
+                  <input type="file" class="form-input" (change)="onEditSubjectContentFileSelect($event)" accept=".pdf,.ppt,.pptx,video/*" />
+                  <small class="form-hint" *ngIf="subjectContentEditForm.fileName">Selected: {{ subjectContentEditForm.fileName }}</small>
+                </div>
+                <div class="form-group">
+                  <label>Video / Link URL</label>
+                  <input class="form-input" [(ngModel)]="subjectContentEditForm.linkUrl" placeholder="YouTube / Drive link" />
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Visible to Students</label>
+                  <select class="form-input" [(ngModel)]="subjectContentEditForm.visibleToStudents">
+                    <option [ngValue]="true">Yes</option>
+                    <option [ngValue]="false">No</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Visible to Parents</label>
+                  <select class="form-input" [(ngModel)]="subjectContentEditForm.visibleToParents">
+                    <option [ngValue]="true">Yes</option>
+                    <option [ngValue]="false">No</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Status</label>
+                  <select class="form-input" [(ngModel)]="subjectContentEditForm.status">
+                    <option value="active">active</option>
+                    <option value="inactive">inactive</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="closeSubjectContentModal()">Close</button>
+            <button class="btn-primary" *ngIf="subjectContentModalMode === 'edit'" (click)="saveSubjectContentChanges()">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notice View Modal -->
+      <div class="modal-overlay" *ngIf="showNoticeModal" (click)="closeNoticeModal()">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Notice Details</h2>
+            <button class="close-btn" (click)="closeNoticeModal()">&times;</button>
+          </div>
+          <div class="modal-body" *ngIf="selectedNotice">
+            <div class="student-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Title</span>
+                <span class="detail-value">{{ selectedNotice.title }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type</span>
+                <span class="detail-value">{{ selectedNotice.noticeType || 'General' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Target Audience</span>
+                <span class="detail-value">{{ selectedNotice.targetAudience || 'All' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Publish Date</span>
+                <span class="detail-value">{{ selectedNotice.publishAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <div class="detail-item" *ngIf="selectedNotice.expiresAt">
+                <span class="detail-label">Expires At</span>
+                <span class="detail-value">{{ selectedNotice.expiresAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                  <span class="status-badge" [class.status-active]="selectedNotice.isRead" [class.status-inactive]="!selectedNotice.isRead">
+                    {{ selectedNotice.isRead ? 'Read' : 'Unread' }}
+                  </span>
+                </span>
+              </div>
+              <div class="detail-item full-width">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">{{ selectedNotice.description || 'N/A' }}</span>
+              </div>
+              <div class="detail-item full-width" *ngIf="selectedNotice.attachmentName || selectedNotice.attachmentData">
+                <span class="detail-label">Attachment</span>
+                <span class="detail-value">
+                  <button class="btn-secondary" (click)="downloadNoticeAttachment(selectedNotice)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Download {{ selectedNotice.attachmentName || 'Attachment' }}
+                  </button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="closeNoticeModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Announcement Modal (Create/Edit/View) -->
+      <div class="modal-overlay" *ngIf="showAnnouncementModal" (click)="closeAnnouncementModal()">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ isEditingAnnouncement ? 'Edit Announcement' : (selectedAnnouncement ? 'Announcement Details' : 'Create Announcement') }}</h2>
+            <button class="close-btn" (click)="closeAnnouncementModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <!-- View Mode -->
+            <div *ngIf="selectedAnnouncement && !isEditingAnnouncement" class="student-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Title</span>
+                <span class="detail-value">{{ selectedAnnouncement.title }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Subject</span>
+                <span class="detail-value">{{ selectedAnnouncement.subjectId ? getTeacherSubjectName(selectedAnnouncement.subjectId) : 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type</span>
+                <span class="detail-value">{{ selectedAnnouncement.announcementType || 'N/A' }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                  <span class="status-badge" 
+                        [class.status-active]="selectedAnnouncement.status === 'published'"
+                        [class.status-inactive]="selectedAnnouncement.status === 'draft'">
+                    {{ selectedAnnouncement.status || 'draft' }}
+                  </span>
+                </span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Publish Date</span>
+                <span class="detail-value">{{ formatAnnouncementDate(selectedAnnouncement.publishAt) || 'N/A' }}</span>
+              </div>
+              <div class="detail-item" *ngIf="selectedAnnouncement.scheduleAt">
+                <span class="detail-label">Scheduled At</span>
+                <span class="detail-value">{{ formatAnnouncementDate(selectedAnnouncement.scheduleAt) || 'N/A' }}</span>
+              </div>
+              <div class="detail-item full-width">
+                <span class="detail-label">Description</span>
+                <span class="detail-value">{{ selectedAnnouncement.description || 'N/A' }}</span>
+              </div>
+              <div class="detail-item full-width" *ngIf="selectedAnnouncement.attachmentName || selectedAnnouncement.attachmentData">
+                <span class="detail-label">Attachment</span>
+                <span class="detail-value">
+                  <button class="btn-secondary" (click)="downloadAnnouncementAttachment(selectedAnnouncement)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15M7 10L12 15M12 15L17 10M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Download {{ selectedAnnouncement.attachmentName || 'Attachment' }}
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            <!-- Create/Edit Mode -->
+            <div *ngIf="!selectedAnnouncement || isEditingAnnouncement">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Subject *</label>
+                  <select class="form-input" [(ngModel)]="announcementForm.subjectId" (change)="onAnnouncementSubjectChange()" [disabled]="isEditingAnnouncement">
+                    <option [value]="undefined">Select subject</option>
+                    <option *ngFor="let subject of teacherAssignedSubjects" [value]="subject.id">
+                      {{ subject.subjectCode || '' }} - {{ subject.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Announcement Type *</label>
+                  <select class="form-input" [(ngModel)]="announcementForm.announcementType">
+                    <option *ngFor="let type of announcementTypes" [value]="type">{{ type }}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Section (Optional)</label>
+                  <select class="form-input" [(ngModel)]="announcementForm.sectionId" [disabled]="!announcementForm.subjectId">
+                    <option [ngValue]="undefined">All Sections</option>
+                    <option *ngFor="let section of getAssignedSectionsForSubject(announcementForm.subjectId || undefined)" [ngValue]="section.id">
+                      {{ section.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Status *</label>
+                  <select class="form-input" [(ngModel)]="announcementForm.status">
+                    <option value="draft">Draft</option>
+                    <option value="published">Publish Now</option>
+                    <option value="scheduled">Schedule Later</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Title *</label>
+                <input class="form-input" [(ngModel)]="announcementForm.title" placeholder="Announcement title" />
+              </div>
+
+              <div class="form-group">
+                <label>Description</label>
+                <textarea class="form-input" rows="4" [(ngModel)]="announcementForm.description" placeholder="Announcement description"></textarea>
+              </div>
+
+              <div class="form-row" *ngIf="announcementForm.status === 'scheduled'">
+                <div class="form-group">
+                  <label>Schedule Date & Time *</label>
+                  <input type="datetime-local" class="form-input" [(ngModel)]="announcementForm.scheduleAt" />
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>Attachment (PDF/Image) - Optional</label>
+                <input type="file" class="form-input" (change)="onAnnouncementAttachmentSelect($event)" accept=".pdf,image/*" />
+                <small class="form-hint" *ngIf="announcementForm.attachmentName">Selected: {{ announcementForm.attachmentName }}</small>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="closeAnnouncementModal()">{{ selectedAnnouncement && !isEditingAnnouncement ? 'Close' : 'Cancel' }}</button>
+            <button class="btn-primary" *ngIf="selectedAnnouncement && !isEditingAnnouncement" (click)="isEditingAnnouncement = true">Edit</button>
+            <button class="btn-primary" *ngIf="!selectedAnnouncement || isEditingAnnouncement" (click)="saveAnnouncement()">
+              {{ isEditingAnnouncement ? 'Update Announcement' : 'Create Announcement' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Assignment Modal (Create/Edit) -->
+      <div class="modal-overlay" *ngIf="showAssignmentModal" (click)="showAssignmentModal = false">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ assignmentModalMode === 'edit' ? 'Edit Assignment' : 'Create Assignment' }}</h2>
+            <button class="close-btn" (click)="showAssignmentModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Subject *</label>
+                <select class="form-input" [(ngModel)]="assignmentForm.subjectId" (change)="onAssignmentSubjectChange()" [disabled]="assignmentModalMode === 'edit'">
+                  <option [value]="null">Select subject</option>
+                  <option *ngFor="let subject of teacherAssignedSubjects" [value]="subject.id">
+                    {{ subject.subjectCode || '' }} - {{ subject.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select class="form-input" [(ngModel)]="assignmentForm.status">
+                  <option value="draft">Draft</option>
+                  <option value="active">Active</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Title *</label>
+              <input class="form-input" [(ngModel)]="assignmentForm.title" placeholder="Assignment title" />
+            </div>
+
+            <div class="form-group">
+              <label>Description</label>
+              <textarea class="form-input" rows="3" [(ngModel)]="assignmentForm.description" placeholder="Assignment description"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label>Instructions</label>
+              <textarea class="form-input" rows="3" [(ngModel)]="assignmentForm.instructions" placeholder="Instructions for students"></textarea>
+            </div>
+
+            <div class="form-row" *ngIf="assignmentForm.subjectId">
+              <div class="form-group">
+                <label>Section (optional - leave empty for all sections)</label>
+                <select class="form-input" [(ngModel)]="assignmentForm.sectionId">
+                  <option [ngValue]="null">All Sections</option>
+                  <option *ngFor="let section of getAssignedSectionsForSubject(assignmentForm.subjectId)" [ngValue]="section.id">
+                    {{ section.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Due Date *</label>
+                <input type="date" class="form-input" [(ngModel)]="assignmentForm.dueDate" />
+              </div>
+              <div class="form-group">
+                <label>Due Time</label>
+                <input type="time" class="form-input" [(ngModel)]="assignmentForm.dueTime" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Max Marks</label>
+                <input type="number" class="form-input" [(ngModel)]="assignmentForm.maxMarks" placeholder="e.g., 100" />
+              </div>
+              <div class="form-group">
+                <label>Grading Type</label>
+                <select class="form-input" [(ngModel)]="assignmentForm.gradingType">
+                  <option *ngFor="let type of gradingTypes" [value]="type">{{ type }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Upload File (PDF/DOC/Image)</label>
+                <input type="file" class="form-input" (change)="onAssignmentFileSelect($event)" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" />
+                <small class="form-hint" *ngIf="assignmentForm.fileName">Selected: {{ assignmentForm.fileName }}</small>
+              </div>
+              <div class="form-group">
+                <label>File URL (optional)</label>
+                <input class="form-input" [(ngModel)]="assignmentForm.fileUrl" placeholder="Direct file URL" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Lock After Due Date</label>
+                <select class="form-input" [(ngModel)]="assignmentForm.lockAfterDueDate">
+                  <option [ngValue]="false">No</option>
+                  <option [ngValue]="true">Yes</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="showAssignmentModal = false">Cancel</button>
+            <button class="btn-primary" (click)="submitAssignment()">{{ assignmentModalMode === 'edit' ? 'Update' : 'Create' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Exam Modal -->
+      <div class="modal-overlay" *ngIf="showExamModal" (click)="showExamModal = false">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ examModalMode === 'edit' ? 'Edit Exam' : 'Create Exam' }}</h2>
+            <button class="close-btn" (click)="showExamModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Subject *</label>
+                <select class="form-input" [(ngModel)]="examForm.subjectId" (ngModelChange)="onExamSubjectChange()" [disabled]="examModalMode === 'edit'">
+                  <option [ngValue]="null">Select subject</option>
+                  <option *ngFor="let subject of teacherAssignedSubjects" [ngValue]="subject.id">
+                    {{ subject.subjectCode || '' }} - {{ subject.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Exam Type</label>
+                <select class="form-input" [(ngModel)]="examForm.examType">
+                  <option *ngFor="let type of examTypes" [value]="type">{{ type }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Exam Title *</label>
+                <input class="form-input" [(ngModel)]="examForm.name" placeholder="e.g. Unit Test 1" />
+              </div>
+            </div>
+            <div class="form-row" *ngIf="examForm.subjectId">
+              <div class="form-group">
+                <label>Section (optional)</label>
+                <select class="form-input" [(ngModel)]="examForm.sectionId" [disabled]="examModalMode === 'edit'">
+                  <option [ngValue]="null">All Sections</option>
+                  <option *ngFor="let section of getAssignedSectionsForSubject(examForm.subjectId)" [ngValue]="section.id">{{ section.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Total Marks</label>
+                <input type="number" class="form-input" [(ngModel)]="examForm.totalMarks" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Passing Marks</label>
+                <input type="number" class="form-input" [(ngModel)]="examForm.passingMarks" min="0" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Duration (minutes)</label>
+                <input type="number" class="form-input" [(ngModel)]="examForm.durationMinutes" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Exam Date *</label>
+                <input type="date" class="form-input" [(ngModel)]="examForm.examDate" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Start Time</label>
+                <input type="time" class="form-input" [(ngModel)]="examForm.startTime" />
+              </div>
+              <div class="form-group">
+                <label>End Time</label>
+                <input type="time" class="form-input" [(ngModel)]="examForm.endTime" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Instructions</label>
+              <textarea class="form-input" rows="3" [(ngModel)]="examForm.instructions" placeholder="Instructions for students"></textarea>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="showExamModal = false">Cancel</button>
+            <button class="btn-primary" (click)="saveExam()">{{ examModalMode === 'edit' ? 'Update Exam' : 'Create Exam' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Create/Edit Question Modal -->
+      <div class="modal-overlay" *ngIf="showQuestionModal" (click)="showQuestionModal = false">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>{{ questionModalMode === 'edit' ? 'Edit Question' : 'Create Question' }}</h2>
+            <button class="close-btn" (click)="showQuestionModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="form-hint" style="margin-bottom: 12px;">This question is for which subject and class? (All sections of that class will have access.)</p>
+            <div class="form-row" *ngIf="questionModalMode !== 'edit'">
+              <div class="form-group">
+                <label>Course *</label>
+                <select class="form-input" [(ngModel)]="questionForm.courseId" (ngModelChange)="onQuestionCourseChange()">
+                  <option [ngValue]="0">Select</option>
+                  <option *ngFor="let c of questionFormCourses" [ngValue]="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Class *</label>
+                <select class="form-input" [(ngModel)]="questionForm.classId" (ngModelChange)="onQuestionClassChange()">
+                  <option [ngValue]="0">Select</option>
+                  <option *ngFor="let c of questionFormClasses" [ngValue]="c.id">{{ c.name }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Subject *</label>
+                <select class="form-input" [(ngModel)]="questionForm.subjectId" (ngModelChange)="onQuestionSubjectChange()" [disabled]="questionModalMode === 'edit'">
+                  <option [ngValue]="null">Select subject</option>
+                  <option *ngFor="let s of (questionModalMode === 'edit' ? teacherAssignedSubjects : questionFormSubjects)" [ngValue]="s.id">{{ s.subjectCode }} - {{ s.name }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Question Type *</label>
+                <select class="form-input" [(ngModel)]="questionForm.questionType">
+                  <option *ngFor="let t of questionTypes" [value]="t">{{ t }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Question Text *</label>
+              <textarea class="form-input" rows="4" [(ngModel)]="questionForm.questionText" placeholder="Enter question text"></textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Marks</label>
+                <input type="number" class="form-input" [(ngModel)]="questionForm.marks" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Difficulty</label>
+                <select class="form-input" [(ngModel)]="questionForm.difficulty">
+                  <option *ngFor="let d of difficultyLevels" [value]="d">{{ d }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Chapter / Unit</label>
+              <input type="text" class="form-input" [(ngModel)]="questionForm.chapterUnit" placeholder="e.g. Chapter 1, Unit 2" />
+            </div>
+            <div *ngIf="['MCQ_SINGLE','MCQ_MULTIPLE'].includes(questionForm.questionType)" class="form-group">
+              <label>Options (mark correct)</label>
+              <div *ngFor="let opt of questionOptions; let i = index" class="form-row" style="align-items: center; margin-bottom: 8px;">
+                <input type="text" class="form-input" [(ngModel)]="opt.optionText" placeholder="Option {{ i+1 }}" style="flex: 1;" />
+                <label style="display: flex; align-items: center; gap: 8px; margin: 0;">
+                  <input type="checkbox" [(ngModel)]="opt.isCorrect" /> Correct
+                </label>
+                <button type="button" class="btn-secondary" (click)="removeQuestionOption(i)" *ngIf="questionOptions.length > 2">Remove</button>
+              </div>
+              <button type="button" class="btn-secondary" (click)="addQuestionOption()" style="margin-top: 8px;">+ Add Option</button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="showQuestionModal = false">Cancel</button>
+            <button class="btn-primary" (click)="questionModalMode === 'edit' ? updateQuestion() : createQuestion()">
+              {{ questionModalMode === 'edit' ? 'Update' : 'Create' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exam View Modal -->
+      <div class="modal-overlay" *ngIf="showExamViewModal" (click)="closeExamViewModal()">
+        <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Exam Details</h2>
+            <button class="close-btn" (click)="closeExamViewModal()">&times;</button>
+          </div>
+          <div class="modal-body" *ngIf="selectedExamForView">
+            <div class="student-details-grid">
+              <div class="detail-item">
+                <span class="detail-label">Name</span>
+                <span class="detail-value">{{ selectedExamForView.name }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Type</span>
+                <span class="detail-value">{{ selectedExamForView.examType }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Subject</span>
+                <span class="detail-value">{{ getTeacherSubjectName(selectedExamForView.subjectId) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Class</span>
+                <span class="detail-value">{{ getClassName(selectedExamForView.classId) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Date</span>
+                <span class="detail-value">{{ formatDate(selectedExamForView.examDate) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Duration</span>
+                <span class="detail-value">{{ selectedExamForView.durationMinutes }} min</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Total Marks</span>
+                <span class="detail-value">{{ selectedExamForView.totalMarks }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                  <span class="status-badge" [class.status-active]="selectedExamForView.status === 'live'" [class.status-inactive]="selectedExamForView.status === 'draft'">
+                    {{ selectedExamForView.status }}
+                  </span>
+                </span>
+              </div>
+              <div class="detail-item full-width" *ngIf="selectedExamForView.instructions">
+                <span class="detail-label">Instructions</span>
+                <span class="detail-value">{{ selectedExamForView.instructions }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-primary" *ngIf="canAddQuestionsToExam(selectedExamForView)" (click)="openAddFromBankModal(selectedExamForView)">Add from Question Bank</button>
+            <button class="btn-secondary" (click)="closeExamViewModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add from Question Bank Modal -->
+      <div class="modal-overlay" *ngIf="showAddFromBankModal" (click)="closeAddFromBankModal()">
+        <div class="modal-content student-modal" style="max-width: 700px; max-height: 85vh; overflow-y: auto;" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Add from Question Bank</h2>
+            <button class="close-btn" (click)="closeAddFromBankModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p class="section-subtitle" style="margin-bottom: 16px;">Select questions to add to exam</p>
+            <div *ngIf="isLoadingBankQuestions" class="empty-state"><p>Loading questions...</p></div>
+            <div *ngIf="!isLoadingBankQuestions && bankQuestionsForExam.length === 0" class="empty-state">
+              <p>No questions in bank for this subject. Create questions first.</p>
+            </div>
+            <div *ngIf="!isLoadingBankQuestions && bankQuestionsForExam.length > 0" style="display: flex; flex-direction: column; gap: 12px;">
+              <div *ngFor="let q of bankQuestionsForExam" style="padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-gray); border-radius: 8px; cursor: pointer; display: flex; align-items: flex-start; gap: 12px;" (click)="toggleBankQuestionSelection(q.id)">
+                <input type="checkbox" [checked]="selectedBankQuestionIds.includes(q.id)" (click)="toggleBankQuestionSelection(q.id); $event.stopPropagation()" />
+                <div style="flex: 1;">
+                  <div style="margin-bottom: 4px;">{{ (q.questionText || '').substring(0, 120) }}{{ (q.questionText || '').length > 120 ? '...' : '' }}</div>
+                  <div style="font-size: 12px; color: var(--text-gray);">{{ q.questionType }} • {{ q.marks }} marks • {{ q.difficulty || 'medium' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="closeAddFromBankModal()">Cancel</button>
+            <button class="btn-primary" (click)="addSelectedFromBank()" [disabled]="selectedBankQuestionIds.length === 0">
+              Add {{ selectedBankQuestionIds.length }} Selected
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evaluate Exam Modal -->
+      <div class="modal-overlay" *ngIf="showEvaluateModal" (click)="closeEvaluateModal()">
+        <div class="modal-content student-modal" style="max-width: 700px;" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Evaluate - {{ selectedExamForEvaluate?.name }}</h2>
+            <button class="close-btn" (click)="closeEvaluateModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div *ngIf="isLoadingAttempts" class="loading">Loading submissions...</div>
+            <div *ngIf="!isLoadingAttempts && examAttemptsForEvaluate.length === 0" class="empty-state">
+              <p>No pending evaluations</p>
+            </div>
+            <div *ngIf="!isLoadingAttempts && examAttemptsForEvaluate.length > 0 && !evaluatingAttempt" class="submissions-list">
+              <div class="submission-item" *ngFor="let attempt of examAttemptsForEvaluate">
+                <div class="submission-header">
+                  <div class="submission-student-name">{{ attempt.studentName || 'Student' }}</div>
+                  <div class="submission-meta">Roll No: {{ attempt.rollNumber || 'N/A' }}</div>
+                  <button class="btn-primary" (click)="openEvaluationForAttempt(attempt)">Evaluate</button>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="evaluatingAttempt" class="form-group">
+              <h4>Evaluate: {{ evaluatingAttempt.studentName || 'Student' }}</h4>
+              <div class="form-group">
+                <label>Marks</label>
+                <input type="number" class="form-input" [(ngModel)]="examEvaluationForm.marks" min="0" [max]="selectedExamForEvaluate?.totalMarks || 100" />
+              </div>
+              <div class="form-group">
+                <label>Feedback</label>
+                <textarea class="form-input" rows="3" [(ngModel)]="examEvaluationForm.feedback" placeholder="Optional feedback"></textarea>
+              </div>
+              <div class="form-row">
+                <button class="btn-secondary" (click)="evaluatingAttempt = null">Back</button>
+                <button class="btn-primary" (click)="submitExamEvaluation()">Save</button>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="closeEvaluateModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submissions Modal -->
+      <div class="modal-overlay" *ngIf="showSubmissionsModal" (click)="showSubmissionsModal = false">
+        <div class="modal-content student-modal" style="max-width: 900px; max-height: 90vh; overflow-y: auto;" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Submissions - {{ selectedAssignmentForSubmissions?.title }}</h2>
+            <button class="close-btn" (click)="showSubmissionsModal = false">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div *ngIf="isLoadingSubmissions" class="loading">Loading submissions...</div>
+            <div *ngIf="!isLoadingSubmissions && assignmentSubmissions.length === 0" class="empty-state">
+              <p>No submissions yet</p>
+            </div>
+            <div *ngIf="!isLoadingSubmissions && assignmentSubmissions.length > 0" class="submissions-list">
+              <div class="submission-item" *ngFor="let submission of assignmentSubmissions">
+                <div class="submission-header">
+                  <div>
+                    <div class="submission-student-name">{{ submission.studentName }}</div>
+                    <div class="submission-meta">
+                      Roll No: {{ submission.rollNumber || 'N/A' }} • 
+                      Status: <span [class]="'status-' + submission.status">{{ submission.status || 'missing' }}</span>
+                      <span *ngIf="submission.isLate" class="late-badge">Late</span>
+                    </div>
+                    <div *ngIf="submission.submittedAt" class="submission-time">
+                      Submitted: {{ formatDate(submission.submittedAt) }} {{ formatTime(submission.submittedAt) }}
+                    </div>
+                  </div>
+                  <div class="submission-marks" *ngIf="submission.marks !== null && submission.marks !== undefined">
+                    <strong>{{ submission.marks }}</strong> / {{ selectedAssignmentForSubmissions?.maxMarks || 'N/A' }}
+                  </div>
+                </div>
+                
+                <div *ngIf="submission.fileName || submission.fileUrl || submission.fileData" class="submission-file">
+                  <div class="file-label">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <strong>File Attachment:</strong>
+                  </div>
+                  
+                  <div class="submission-attachment-container">
+                    <!-- Image Preview -->
+                    <div class="submission-attachment-preview" *ngIf="submission.fileData || submission.fileUrl">
+                      <img *ngIf="isImageFile(submission.fileName) && (submission.fileData || submission.fileUrl)" 
+                           [src]="submission.fileData || submission.fileUrl" 
+                           [alt]="submission.fileName || 'Submission file'"
+                           class="submission-attachment-image"
+                           (error)="onSubmissionImageError($event)" />
+                      <div *ngIf="!isImageFile(submission.fileName) && (submission.fileData || submission.fileUrl)" class="submission-file-preview">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span>{{ submission.fileName || 'File' }}</span>
+                      </div>
+                    </div>
+                    
+                    <!-- File Actions -->
+                    <div class="submission-file-actions">
+                      <span class="file-name-display" *ngIf="submission.fileName">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M14 2V8H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        {{ submission.fileName }}
+                      </span>
+                      <a *ngIf="submission.fileUrl" [href]="submission.fileUrl" target="_blank" class="btn-file-action" (click)="$event.stopPropagation()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M18 13V19A2 2 0 0 1 16 21H5A2 2 0 0 1 3 19V8A2 2 0 0 1 5 6H11" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M15 3H21V9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Open File
+                      </a>
+                      <button *ngIf="submission.fileData" (click)="downloadSubmissionFile(submission)" class="btn-file-action" (click)="$event.stopPropagation()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M7 10L12 15L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                          <path d="M12 15V3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        Download
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div *ngIf="submission.feedback" class="submission-feedback">
+                  <strong>Feedback:</strong> {{ submission.feedback }}
+                </div>
+                
+                <div class="submission-actions">
+                  <button class="btn-primary" (click)="openEvaluation(submission)" *ngIf="submission.status !== 'missing'">
+                    {{ submission.marks !== null ? 'Re-evaluate' : 'Evaluate' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="showSubmissionsModal = false">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evaluation Modal -->
+      <div class="modal-overlay" *ngIf="evaluatingSubmission" (click)="evaluatingSubmission = null">
+        <div class="modal-content" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Evaluate Submission</h2>
+            <button class="close-btn" (click)="evaluatingSubmission = null">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Student: {{ evaluatingSubmission?.studentName }}</label>
+            </div>
+            <div class="form-group">
+              <label>Marks</label>
+              <input type="number" class="form-input" [(ngModel)]="evaluationForm.marks" 
+                     [max]="selectedAssignmentForSubmissions?.maxMarks || 100" 
+                     placeholder="Enter marks" />
+            </div>
+            <div class="form-group">
+              <label>Feedback</label>
+              <textarea class="form-input" rows="4" [(ngModel)]="evaluationForm.feedback" 
+                        placeholder="Enter feedback for student"></textarea>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="evaluationForm.allowResubmit" />
+                Allow Re-submission
+              </label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn-secondary" (click)="evaluatingSubmission = null">Cancel</button>
+            <button class="btn-primary" (click)="submitEvaluation()">Save Evaluation</button>
+          </div>
+        </div>
+      </div>
+
+      <app-footer></app-footer>
+    </div>

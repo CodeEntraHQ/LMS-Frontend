@@ -1,0 +1,37 @@
+/* Admin Exams - reuses same patterns as admin-fees */
+.dashboard-section { margin-bottom: 24px; }
+.section-header { margin-bottom: 20px; }
+.section-title { font-size: 24px; font-weight: 900; margin-bottom: 6px; }
+.section-subtitle { color: var(--text-gray); font-weight: 600; }
+.sub-tabs { display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; }
+.sub-tab { padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border-gray); background: var(--secondary-bg); color: var(--text-white); font-weight: 700; cursor: pointer; }
+.sub-tab.active { background: var(--accent-green); border-color: var(--accent-green); color: white; }
+.form-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.form-header h3 { margin: 0; font-size: 20px; font-weight: 700; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+.form-group { display: flex; flex-direction: column; gap: 8px; }
+.form-group label { color: var(--text-white); font-weight: 700; font-size: 14px; }
+.form-input { padding: 12px 14px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-gray); border-radius: 10px; color: var(--text-white); outline: none; font-size: 14px; }
+.form-input:focus { border-color: var(--entity-primary-color); }
+.form-actions { display: flex; gap: 12px; margin-top: 16px; }
+.btn-primary { padding: 10px 20px; border-radius: 12px; background: var(--entity-primary-color); color: white; font-weight: 800; cursor: pointer; border: none; }
+.btn-secondary { padding: 10px 20px; border-radius: 12px; border: 1px solid var(--border-gray); background: var(--secondary-bg); color: var(--text-white); font-weight: 800; cursor: pointer; }
+.attendance-summary-table { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+.summary-table-header { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1fr 1fr 2fr; gap: 20px; padding: 12px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-gray); border-radius: 8px; font-weight: 800; font-size: 14px; color: var(--text-gray); text-transform: uppercase; }
+.summary-table-row { display: grid; grid-template-columns: 2fr 1.5fr 1fr 1fr 1fr 1fr 1fr 2fr; gap: 20px; padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--border-gray); border-radius: 8px; align-items: center; }
+.summary-table-row span { font-size: 14px; color: var(--text-white); }
+.notice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.notice-actions button { padding: 8px 16px; font-size: 12px; font-weight: 700; border-radius: 8px; cursor: pointer; }
+.notice-actions .btn-view { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); color: #3b82f6; }
+.notice-actions .btn-edit { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); color: #f59e0b; }
+.status-badge { padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+.status-badge.status-active { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+.loading, .empty-state { text-align: center; padding: 40px; color: var(--text-gray); }
+.settings-card { background: var(--card-bg); border: 1px solid var(--border-gray); border-radius: 16px; padding: 24px; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+.modal-content { background: var(--card-bg); border: 1px solid var(--border-gray); border-radius: 16px; padding: 24px; width: 90%; max-height: 90vh; overflow-y: auto; z-index: 1001; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.modal-header h2 { margin: 0; font-size: 20px; font-weight: 900; }
+.close-btn { background: transparent; border: none; color: var(--text-white); font-size: 32px; cursor: pointer; }
+.modal-body { margin-bottom: 20px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 12px; }

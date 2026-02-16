@@ -1,0 +1,384 @@
+<div class="dashboard-section">
+  <div class="section-header">
+    <div>
+      <h2 class="section-title">🧪 Exams (Admin View)</h2>
+      <p class="section-subtitle">Manage exam structure, rules, teacher assignment, monitoring & results</p>
+    </div>
+  </div>
+
+  <div class="sub-tabs" style="margin: 24px 0;">
+    <button class="sub-tab" [class.active]="examsSubTab === 'configuration'" (click)="examsSubTab = 'configuration'">Exam Creation & Config</button>
+    <button class="sub-tab" [class.active]="examsSubTab === 'teachers'" (click)="examsSubTab = 'teachers'">Teacher Assignment</button>
+    <button class="sub-tab" [class.active]="examsSubTab === 'monitoring'" (click)="examsSubTab = 'monitoring'">Monitoring</button>
+    <button class="sub-tab" [class.active]="examsSubTab === 'results'" (click)="examsSubTab = 'results'">Results & Performance</button>
+    <button class="sub-tab" [class.active]="examsSubTab === 'control'" (click)="examsSubTab = 'control'">Control & Security</button>
+  </div>
+
+  <!-- Configuration Tab -->
+  <div *ngIf="examsSubTab === 'configuration'">
+    <div class="form-header">
+      <h3>Exams</h3>
+      <button class="btn-primary" (click)="openCreateExamModal()">+ Create Exam</button>
+    </div>
+    <button class="btn-secondary" (click)="showFilters = !showFilters">{{ showFilters ? 'Hide' : 'Filter' }}</button>
+    <div *ngIf="showFilters" class="form-row" style="margin: 16px 0;">
+      <div class="form-group">
+        <label>Course</label>
+        <select class="form-input" [(ngModel)]="filters.courseId" (change)="onCourseChange()">
+          <option value="">All</option>
+          <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <select class="form-input" [(ngModel)]="filters.classId" (change)="onClassChange()">
+          <option value="">All</option>
+          <option *ngFor="let c of filterClasses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Subject</label>
+        <select class="form-input" [(ngModel)]="filters.subjectId">
+          <option value="">All</option>
+          <option *ngFor="let s of filterSubjects" [value]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Exam Type</label>
+        <select class="form-input" [(ngModel)]="filters.examType">
+          <option value="">All</option>
+          <option value="UNIT_TEST">Unit Test</option>
+          <option value="MID_TERM">Mid-term</option>
+          <option value="FINAL_EXAM">Final Exam</option>
+          <option value="PRACTICAL_EXAM">Practical</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input" [(ngModel)]="filters.status">
+          <option value="">All</option>
+          <option value="draft">Draft</option>
+          <option value="live">Live</option>
+          <option value="completed">Completed</option>
+          <option value="locked">Locked</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" (click)="loadExams()">Apply</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoadingExams" class="loading">Loading exams...</div>
+    <div *ngIf="!isLoadingExams && exams.length === 0" class="empty-state"><p>No exams found. Create one to get started.</p></div>
+    <div *ngIf="!isLoadingExams && exams.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Name</span>
+        <span>Course / Class</span>
+        <span>Subject</span>
+        <span>Type</span>
+        <span>Date</span>
+        <span>Marks</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let exam of exams">
+        <span>{{ exam.name }}</span>
+        <span>{{ getCourseName(exam.courseId) }} / {{ getClassName(exam.classId) || 'N/A' }}</span>
+        <span>{{ getSubjectName(exam.subjectId) }}</span>
+        <span>{{ exam.examType }}</span>
+        <span>{{ formatDate(exam.examDate) }}</span>
+        <span>{{ exam.totalMarks }}/{{ exam.passingMarks }}</span>
+        <span><span class="status-badge" [class.status-active]="exam.status === 'live' || exam.status === 'completed'">{{ exam.status }}</span></span>
+        <span class="notice-actions">
+          <button class="btn-primary" *ngIf="exam.status === 'draft'" (click)="publishExam(exam)">Publish Exam</button>
+          <button class="btn-edit" (click)="editExam(exam)">Edit</button>
+          <button class="btn-secondary" (click)="deleteExam(exam)">Delete</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teacher Assignment Tab -->
+  <div *ngIf="examsSubTab === 'teachers'">
+    <p class="section-subtitle" style="margin-bottom: 16px;">Assign teachers to exams for evaluation and result publishing</p>
+    <div *ngIf="exams.length === 0" class="empty-state"><p>Create exams first, then assign teachers.</p></div>
+    <div *ngIf="exams.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Exam</span>
+        <span>Course / Class</span>
+        <span>Subject</span>
+        <span>Date</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let exam of exams">
+        <span>{{ exam.name }}</span>
+        <span>{{ getCourseName(exam.courseId) }} / {{ getClassName(exam.classId) || 'N/A' }}</span>
+        <span>{{ getSubjectName(exam.subjectId) }}</span>
+        <span>{{ formatDate(exam.examDate) }}</span>
+        <span><button class="btn-primary" (click)="openAssignTeacher(exam)">Assign Teachers</button></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monitoring Tab -->
+  <div *ngIf="examsSubTab === 'monitoring'">
+    <p class="section-subtitle" style="margin-bottom: 16px;">Live exam status, students appeared, absent, submitted, evaluation pending</p>
+    <div *ngIf="exams.length === 0" class="empty-state"><p>No exams to monitor.</p></div>
+    <div *ngIf="exams.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Exam</span>
+        <span>Date</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let exam of exams">
+        <span>{{ exam.name }}</span>
+        <span>{{ formatDate(exam.examDate) }}</span>
+        <span><span class="status-badge">{{ exam.status }}</span></span>
+        <span><button class="btn-view" (click)="loadMonitoring(exam)">View Stats</button></span>
+      </div>
+    </div>
+    <div *ngIf="monitoringData" class="settings-card" style="margin-top: 24px; max-width: 500px;">
+      <h3>Monitoring: {{ monitoringData.examName }}</h3>
+      <p>Total Eligible: {{ monitoringData.totalEligible }}</p>
+      <p>Appeared: {{ monitoringData.appeared }}</p>
+      <p>Absent: {{ monitoringData.absent }}</p>
+      <p>Submitted: {{ monitoringData.submitted }}</p>
+      <p>Evaluation Pending: {{ monitoringData.evaluationPending }}</p>
+    </div>
+  </div>
+
+  <!-- Results Tab -->
+  <div *ngIf="examsSubTab === 'results'">
+    <p class="section-subtitle" style="margin-bottom: 16px;">Result publish/unpublish, subject-wise performance, pass/fail ratio</p>
+    <div *ngIf="exams.length === 0" class="empty-state"><p>No exams.</p></div>
+    <div *ngIf="exams.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Exam</span>
+        <span>Date</span>
+        <span>Result</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let exam of exams">
+        <span>{{ exam.name }}</span>
+        <span>{{ formatDate(exam.examDate) }}</span>
+        <span><span class="status-badge" [class.status-active]="exam.resultPublished">{{ exam.resultPublished ? 'Published' : 'Not Published' }}</span></span>
+        <span class="notice-actions">
+          <button class="btn-view" (click)="loadPerformance(exam)">Performance</button>
+          <button class="btn-primary" *ngIf="!exam.resultPublished" (click)="publishResult(exam)">Publish</button>
+          <button class="btn-secondary" *ngIf="exam.resultPublished" (click)="unpublishResult(exam)">Unpublish</button>
+        </span>
+      </div>
+    </div>
+    <div *ngIf="performanceData" class="settings-card" style="margin-top: 24px; max-width: 500px;">
+      <h3>Performance: {{ performanceData.examName }}</h3>
+      <p>Total Evaluated: {{ performanceData.totalEvaluated }}</p>
+      <p>Passed: {{ performanceData.passed }} | Failed: {{ performanceData.failed }}</p>
+      <p>Average: {{ performanceData.averageMarks }}</p>
+      <p>Pass %: {{ performanceData.passPercentage }}%</p>
+    </div>
+  </div>
+
+  <!-- Control Tab -->
+  <div *ngIf="examsSubTab === 'control'">
+    <p class="section-subtitle" style="margin-bottom: 16px;">Lock exam, disable exam, prevent re-edit after publish</p>
+    <div *ngIf="exams.length === 0" class="empty-state"><p>No exams.</p></div>
+    <div *ngIf="exams.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Exam</span>
+        <span>Status</span>
+        <span>Locked</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let exam of exams">
+        <span>{{ exam.name }}</span>
+        <span><span class="status-badge">{{ exam.status }}</span></span>
+        <span>{{ exam.examLocked ? 'Yes' : 'No' }}</span>
+        <span class="notice-actions">
+          <button class="btn-primary" *ngIf="!exam.examLocked && exam.status !== 'disabled'" (click)="lockExam(exam)">Lock</button>
+          <button class="btn-secondary" *ngIf="exam.examLocked" (click)="unlockExam(exam)">Unlock</button>
+          <button class="btn-secondary" *ngIf="exam.status !== 'disabled'" (click)="disableExam(exam)">Disable</button>
+          <button class="btn-primary" *ngIf="exam.status === 'disabled'" (click)="enableExam(exam)">Enable</button>
+        </span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Exam Create/Edit Modal -->
+<div class="modal-overlay" *ngIf="showExamModal" (click)="closeExamModal()">
+  <div class="modal-content student-modal" (click)="$event.stopPropagation()" style="max-width: 700px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-header">
+      <h2>{{ isEditingExam ? 'Edit Exam' : 'Create Exam' }}</h2>
+      <button class="close-btn" (click)="closeExamModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1/-1;">
+          <label>Exam Name *</label>
+          <input type="text" class="form-input" [(ngModel)]="examForm.name" placeholder="e.g. Mathematics Unit Test 1" />
+        </div>
+        <div class="form-group">
+          <label>Course *</label>
+          <select class="form-input" [(ngModel)]="examForm.courseId" (change)="onExamFormCourseChange()">
+            <option [value]="0">Select</option>
+            <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Class *</label>
+          <select class="form-input" [(ngModel)]="examForm.classId" (change)="onExamFormClassChange()">
+            <option [value]="0">Select</option>
+            <option *ngFor="let c of filterClasses" [value]="c.id">{{ c.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Subject *</label>
+          <select class="form-input" [(ngModel)]="examForm.subjectId">
+            <option [value]="0">Select</option>
+            <option *ngFor="let s of filterSubjects" [value]="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Exam Type *</label>
+          <select class="form-input" [(ngModel)]="examForm.examType">
+            <option value="UNIT_TEST">Unit Test</option>
+            <option value="MID_TERM">Mid-term</option>
+            <option value="FINAL_EXAM">Final Exam</option>
+            <option value="PRACTICAL_EXAM">Practical</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Exam Date *</label>
+          <input type="date" class="form-input" [(ngModel)]="examForm.examDate" />
+        </div>
+        <div class="form-group">
+          <label>Total Marks</label>
+          <input type="number" class="form-input" [(ngModel)]="examForm.totalMarks" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Passing Marks</label>
+          <input type="number" class="form-input" [(ngModel)]="examForm.passingMarks" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Duration (min)</label>
+          <input type="number" class="form-input" [(ngModel)]="examForm.durationMinutes" min="1" />
+        </div>
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" class="form-input" [(ngModel)]="examForm.startTime" />
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" class="form-input" [(ngModel)]="examForm.endTime" />
+        </div>
+      </div>
+      <h4 style="margin: 20px 0 12px;">Exam Rules</h4>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Negative Marking</label>
+          <select class="form-input" [(ngModel)]="examForm.negativeMarking">
+            <option [value]="false">No</option>
+            <option [value]="true">Yes</option>
+          </select>
+        </div>
+        <div class="form-group" *ngIf="examForm.negativeMarking">
+          <label>Negative Marks/Question</label>
+          <input type="number" class="form-input" [(ngModel)]="examForm.negativeMarksPerQuestion" step="0.25" min="0" />
+        </div>
+        <div class="form-group">
+          <label>Allow MCQ</label>
+          <select class="form-input" [(ngModel)]="examForm.allowMcq">
+            <option [value]="true">Yes</option>
+            <option [value]="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Allow Subjective</label>
+          <select class="form-input" [(ngModel)]="examForm.allowSubjective">
+            <option [value]="true">Yes</option>
+            <option [value]="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Allow File Upload</label>
+          <select class="form-input" [(ngModel)]="examForm.allowFileUpload">
+            <option [value]="false">No</option>
+            <option [value]="true">Yes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Re-attempt Allowed</label>
+          <select class="form-input" [(ngModel)]="examForm.reAttemptAllowed">
+            <option [value]="false">No</option>
+            <option [value]="true">Yes</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Time Limit Strict</label>
+          <select class="form-input" [(ngModel)]="examForm.timeLimitStrict">
+            <option [value]="true">Strict</option>
+            <option [value]="false">Flexible</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Random Shuffle</label>
+          <select class="form-input" [(ngModel)]="examForm.randomQuestionShuffle">
+            <option [value]="true">Yes</option>
+            <option [value]="false">No</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeExamModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveExam()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Assign Teacher Modal -->
+<div class="modal-overlay" *ngIf="showAssignTeacherModal" (click)="closeAssignTeacherModal()">
+  <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Assign Teachers - {{ selectedExamForTeachers?.name }}</h2>
+      <button class="close-btn" (click)="closeAssignTeacherModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Teacher</label>
+          <select class="form-input" [(ngModel)]="assignTeacherForm.teacherId">
+            <option [value]="undefined">Select</option>
+            <option *ngFor="let t of teachers" [value]="t.id">{{ t.firstName }} {{ t.lastName }}</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Can Evaluate</label>
+          <select class="form-input" [(ngModel)]="assignTeacherForm.canEvaluate">
+            <option [value]="true">Yes</option>
+            <option [value]="false">No</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Can Publish Result</label>
+          <select class="form-input" [(ngModel)]="assignTeacherForm.canPublishResult">
+            <option [value]="false">No</option>
+            <option [value]="true">Yes</option>
+          </select>
+        </div>
+        <div class="form-group" style="align-self: flex-end;">
+          <button class="btn-primary" (click)="addTeacherAssignment()">Add</button>
+        </div>
+      </div>
+      <h4 style="margin-top: 24px;">Assigned Teachers</h4>
+      <div *ngIf="teacherAssignments.length === 0" class="empty-state"><p>No teachers assigned.</p></div>
+      <div *ngFor="let a of teacherAssignments" class="summary-table-row" style="margin-bottom: 8px;">
+        <span>{{ getTeacherName(a.teacherId) }}</span>
+        <span>Evaluate: {{ a.canEvaluate ? 'Yes' : 'No' }}</span>
+        <span>Publish: {{ a.canPublishResult ? 'Yes' : 'No' }}</span>
+        <span><button class="btn-secondary" (click)="removeTeacherAssignment(a.teacherId)">Remove</button></span>
+      </div>
+    </div>
+  </div>
+</div>
