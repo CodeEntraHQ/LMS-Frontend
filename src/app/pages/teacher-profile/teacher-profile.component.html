@@ -1,0 +1,250 @@
+    <div class="page">
+      <!-- Top Nav (simple, matching dashboard vibe) -->
+      <header class="nav">
+        <div class="nav-left">
+          <a class="brand" routerLink="/teacher/dashboard">
+            <svg class="brand-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="brand-text">LMS</span>
+          </a>
+        </div>
+        <div class="nav-center">
+          <div class="breadcrumb">
+            <a routerLink="/teacher/dashboard" class="breadcrumb-link">Dashboard</a>
+            <span class="breadcrumb-separator">></span>
+            <span class="breadcrumb-current">Profile</span>
+          </div>
+        </div>
+        <div class="nav-right">
+          <button class="icon-btn" (click)="toggleTheme()" aria-label="Toggle theme">
+            <svg *ngIf="isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M12 2V4M12 20V22M4.93 4.93L6.34 6.34M17.66 17.66L19.07 19.07M2 12H4M20 12H22M4.93 19.07L6.34 17.66M17.66 6.34L19.07 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <svg *ngIf="!isDarkMode" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="content">
+        <!-- Header -->
+        <div class="page-head">
+          <div>
+            <h1 class="title">Profile Management</h1>
+            <p class="subtitle">Manage your account settings and preferences</p>
+          </div>
+          <div class="head-actions">
+            <button
+              class="btn-secondary"
+              *ngIf="isEditing"
+              type="button"
+              (click)="onCancelEdit()"
+            >
+              Cancel
+            </button>
+            <button
+              class="btn-primary"
+              *ngIf="!isEditing"
+              type="button"
+              (click)="onStartEdit()"
+            >
+              Edit Profile
+            </button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab" [class.active]="activeTab==='profile'" (click)="activeTab='profile'">Profile</button>
+          <button class="tab" [class.active]="activeTab==='security'" (click)="activeTab='security'">Security</button>
+          <button class="tab" [class.active]="activeTab==='preferences'" (click)="activeTab='preferences'">Preferences</button>
+        </div>
+
+        <!-- Grid -->
+        <div class="grid">
+          <!-- Left card -->
+          <div class="card span-8" *ngIf="activeTab === 'profile'">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="card-ico">👤</span>
+                <div>
+                  <div class="card-title-text">Personal Information</div>
+                  <div class="card-subtitle">Update your personal details and contact information</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form">
+              <div class="row">
+                <div class="field">
+                  <label>Full Name</label>
+                  <input class="input" [(ngModel)]="fullName" name="fullName" [disabled]="!isEditing" />
+                </div>
+                <div class="field">
+                  <label>Phone Number</label>
+                  <input class="input" [(ngModel)]="phone" name="phone" placeholder="" [disabled]="!isEditing" />
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Gender</label>
+                <select class="input" [(ngModel)]="gender" name="gender" [disabled]="!isEditing">
+                  <option value="" disabled>Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>Address</label>
+                <textarea class="input textarea" [(ngModel)]="address" name="address" [disabled]="!isEditing"></textarea>
+              </div>
+
+              <div class="field">
+                <label>Bio</label>
+                <textarea class="input textarea" [(ngModel)]="bio" name="bio" [disabled]="!isEditing"></textarea>
+              </div>
+            </div>
+
+            <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+            <button class="save-btn" *ngIf="isEditing" type="button" (click)="onSave()" [disabled]="isLoading">
+              <span class="save-ico">💾</span>
+              <span>{{ isLoading ? 'Saving...' : 'Save Changes' }}</span>
+            </button>
+          </div>
+
+          <!-- Security Tab -->
+          <div class="card span-8" *ngIf="activeTab === 'security'">
+            <div class="card-head">
+              <div class="card-title">
+                <span class="card-ico">🔒</span>
+                <div>
+                  <div class="card-title-text">Security Settings</div>
+                  <div class="card-subtitle">Change your password to keep your account secure</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="form">
+              <div class="field">
+                <label>Current Password</label>
+                <input type="password" class="input" [(ngModel)]="currentPassword" name="currentPassword" [disabled]="!isEditingSecurity" placeholder="Enter current password" />
+              </div>
+
+              <div class="field">
+                <label>New Password</label>
+                <input type="password" class="input" [(ngModel)]="newPassword" name="newPassword" [disabled]="!isEditingSecurity" placeholder="Enter new password" />
+              </div>
+
+              <div class="field">
+                <label>Confirm New Password</label>
+                <input type="password" class="input" [(ngModel)]="confirmPassword" name="confirmPassword" [disabled]="!isEditingSecurity" placeholder="Confirm new password" />
+              </div>
+            </div>
+
+            <div *ngIf="securityErrorMessage" class="error-message">{{ securityErrorMessage }}</div>
+            <div *ngIf="securitySuccessMessage" class="success-message">{{ securitySuccessMessage }}</div>
+            <div *ngIf="isEditingSecurity" style="display: flex; gap: 10px; margin-top: 14px;">
+              <button class="btn-secondary" type="button" (click)="onCancelEditSecurity()" [disabled]="isLoadingSecurity" style="flex: 1;">
+                Cancel
+              </button>
+              <button class="save-btn" type="button" (click)="onSavePassword()" [disabled]="isLoadingSecurity" style="flex: 1;">
+                <span class="save-ico">💾</span>
+                <span>{{ isLoadingSecurity ? 'Changing...' : 'Change Password' }}</span>
+              </button>
+            </div>
+            <button class="save-btn" *ngIf="!isEditingSecurity" type="button" (click)="onStartEditSecurity()">
+              <span class="save-ico">✏️</span>
+              <span>Change Password</span>
+            </button>
+          </div>
+
+          <!-- Right card -->
+          <div class="card span-4">
+            <div class="card-title-text">Profile Summary</div>
+            <div class="summary">
+              <div class="avatar-upload-wrapper">
+                <div class="big-avatar" [style.background-image]="profileImage ? 'url(' + profileImage + ')' : 'none'">
+                  <span *ngIf="!profileImage">{{ initial }}</span>
+                </div>
+                <button
+                  type="button"
+                  class="avatar-upload-btn"
+                  (click)="isEditing && triggerFileUpload()"
+                  *ngIf="isEditing"
+                  aria-label="Upload photo"
+                  title="Change Photo"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M7 10L12 5L17 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M12 5V15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
+                <input
+                  type="file"
+                  #fileInput
+                  (change)="onPhotoFileSelect($event)"
+                  accept="image/*"
+                  style="display: none;"
+                />
+              </div>
+              <div class="name">{{ userName }}</div>
+              <div class="role">TEACHER</div>
+              <div class="email-row">
+                <span class="mail-ico">✉</span>
+                <span>{{ userEmail }}</span>
+              </div>
+
+              <div class="divider"></div>
+
+              <div class="qs-head">
+                <span class="qs-ico">📈</span>
+                <span class="qs-title">Quick Stats</span>
+              </div>
+
+              <div class="stats">
+                <div class="stat-row">
+                  <span>Profile Completion</span>
+                  <span class="stat-val">{{ profileCompletion }}%</span>
+                </div>
+                <div class="stat-row">
+                  <span>Joined on</span>
+                  <span class="stat-val">{{ joinedOn }}</span>
+                </div>
+                <div class="stat-row">
+                  <span>Last Login</span>
+                  <span class="stat-val">{{ lastLogin }}</span>
+                </div>
+                  <div class="stat-row">
+                    <span>Account Status</span>
+                    <span class="status-pill" [class.active]="isActive" [class.inactive]="!isActive">
+                      {{ isActive ? 'Active' : 'Inactive' }}
+                    </span>
+                  </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="footer">
+          <div>© 2026 CodeEntra. All rights reserved.</div>
+          <div class="footer-right">
+            <button class="contact-btn" (click)="noop()">Contact Us</button>
+            <span>Connect with us</span>
+            <div class="social">
+              <span class="social-ico">◎</span>
+              <span class="social-ico">in</span>
+              <span class="social-ico">f</span>
+              <span class="social-ico">𝕏</span>
+            </div>
+          </div>
+        </footer>
+      </main>
+    </div>

@@ -13,6 +13,7 @@ import { TeacherDashboardComponent } from './pages/teacher-dashboard/teacher-das
 import { TeacherProfileComponent } from './pages/teacher-profile/teacher-profile.component';
 import { StudentDashboardComponent } from './pages/student-dashboard/student-dashboard.component';
 import { StudentProfileComponent } from './pages/student-profile/student-profile.component';
+import { StudentExamAttemptComponent } from './pages/student-exam-attempt/student-exam-attempt.component';
 import { ParentDashboardComponent } from './pages/parent-dashboard/parent-dashboard.component';
 import { ParentProfileComponent } from './pages/parent-profile/parent-profile.component';
 import { AcceptInvitationComponent } from './pages/accept-invitation/accept-invitation.component';
@@ -88,6 +89,11 @@ export const routes: Routes = [
   {
     path: 'student/profile',
     component: StudentProfileComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'student/exam/:examId',
+    component: StudentExamAttemptComponent,
     canActivate: [authGuard]
   },
   {

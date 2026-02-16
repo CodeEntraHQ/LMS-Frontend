@@ -1,0 +1,470 @@
+<div class="dashboard-section">
+  <div class="section-header">
+    <div>
+      <h2 class="section-title">📊 Reports (Admin View)</h2>
+      <p class="section-subtitle">Academic, attendance, financial & activity reports for institution decision-making</p>
+    </div>
+  </div>
+
+  <div class="sub-tabs">
+    <button class="sub-tab" [class.active]="reportSubTab === 'academic'" (click)="reportSubTab = 'academic'">📈 Academic</button>
+    <button class="sub-tab" [class.active]="reportSubTab === 'attendance'" (click)="reportSubTab = 'attendance'">📅 Attendance</button>
+    <button class="sub-tab" [class.active]="reportSubTab === 'financial'" (click)="reportSubTab = 'financial'">💰 Financial</button>
+    <button class="sub-tab" [class.active]="reportSubTab === 'teacher-activity'" (click)="reportSubTab = 'teacher-activity'">👩‍🏫 Teacher Activity</button>
+    <button class="sub-tab" [class.active]="reportSubTab === 'student-activity'" (click)="reportSubTab = 'student-activity'">👨‍🎓 Student Activity</button>
+    <button class="sub-tab" [class.active]="reportSubTab === 'custom'" (click)="reportSubTab = 'custom'">🔧 Custom & Filtered</button>
+  </div>
+
+  <!-- Filters (shared) -->
+  <div class="filters-card">
+    <h4 class="filters-title">Filters</h4>
+    <div class="form-row filters-row">
+      <div class="form-group">
+        <label>Course</label>
+        <select class="form-input" [(ngModel)]="filters.courseId" (change)="onCourseChange()">
+          <option value="">All</option>
+          <option *ngFor="let c of courses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <select class="form-input" [(ngModel)]="filters.classId" (change)="onClassChange()">
+          <option value="">All</option>
+          <option *ngFor="let c of filterClasses" [value]="c.id">{{ c.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Subject</label>
+        <select class="form-input" [(ngModel)]="filters.subjectId">
+          <option value="">All</option>
+          <option *ngFor="let s of filterSubjects" [value]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Teacher</label>
+        <select class="form-input" [(ngModel)]="filters.teacherId">
+          <option value="">All</option>
+          <option *ngFor="let t of teachers" [value]="t.id">{{ t.firstName }} {{ t.lastName }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Academic Year</label>
+        <input class="form-input" type="text" [(ngModel)]="filters.academicYear" placeholder="2025-26" />
+      </div>
+      <div class="form-group">
+        <label>From Date</label>
+        <input class="form-input" type="date" [(ngModel)]="filters.fromDate" />
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input class="form-input" type="date" [(ngModel)]="filters.toDate" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Academic Reports -->
+  <div *ngIf="reportSubTab === 'academic'" class="report-panel">
+    <div class="academic-sub-tabs">
+      <button class="sub-tab" [class.active]="academicSubTab === 'student-perf'" (click)="academicSubTab = 'student-perf'; loadStudentPerformance()">Student Performance</button>
+      <button class="sub-tab" [class.active]="academicSubTab === 'exam-analysis'" (click)="academicSubTab = 'exam-analysis'; loadExamAnalysis()">Exam Analysis</button>
+      <button class="sub-tab" [class.active]="academicSubTab === 'assignment'" (click)="academicSubTab = 'assignment'; loadAssignmentReport()">Assignment Report</button>
+    </div>
+
+    <div *ngIf="academicSubTab === 'student-perf'">
+      <div class="form-actions" style="margin-bottom: 16px;">
+        <button class="btn-primary" (click)="loadStudentPerformance()" [disabled]="isLoading">Generate Report</button>
+        <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+        <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+      </div>
+      <div *ngIf="isLoading" class="loading">Loading...</div>
+      <div *ngIf="!isLoading && studentPerfData" class="report-content">
+        <h4>Summary</h4>
+        <div class="table-container">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Pass Ratio</th>
+                <th>Avg Marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ studentPerfData.summary?.totalPassed ?? '-' }}</td>
+                <td>{{ studentPerfData.summary?.totalFailed ?? '-' }}</td>
+                <td>{{ formatNum(studentPerfData.summary?.overallPassRatio) }}%</td>
+                <td>{{ formatNum(studentPerfData.summary?.overallAverage) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Class-wise Result</h4>
+        <div class="table-container" *ngIf="studentPerfData.classWiseResult?.length">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Pass %</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of studentPerfData.classWiseResult">
+                <td>{{ getClassName(r.classId) }}</td>
+                <td>{{ r.passed }}</td>
+                <td>{{ r.failed }}</td>
+                <td>{{ formatNum(r.passRatio) }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p *ngIf="!studentPerfData.classWiseResult?.length" class="empty-text">No class-wise data.</p>
+      </div>
+      <p *ngIf="!isLoading && !studentPerfData" class="empty-text">Click Generate Report to load data.</p>
+    </div>
+
+    <div *ngIf="academicSubTab === 'exam-analysis'">
+      <div class="form-actions" style="margin-bottom: 16px;">
+        <button class="btn-primary" (click)="loadExamAnalysis()" [disabled]="isLoading">Generate Report</button>
+        <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+        <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+      </div>
+      <div *ngIf="isLoading" class="loading">Loading...</div>
+      <div *ngIf="!isLoading && examAnalysisData?.exams?.length" class="report-content">
+        <div class="table-container">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Exam</th>
+                <th>Type</th>
+                <th>Date</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Avg</th>
+                <th>Attempted</th>
+                <th>Absent</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let e of examAnalysisData.exams">
+                <td>{{ e.examName }}</td>
+                <td>{{ e.examType }}</td>
+                <td>{{ e.examDate }}</td>
+                <td>{{ e.passed }}</td>
+                <td>{{ e.failed }}</td>
+                <td>{{ formatNum(e.averageMarks) }}</td>
+                <td>{{ e.attempted }}</td>
+                <td>{{ e.absent }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p *ngIf="!isLoading && (!examAnalysisData?.exams?.length)" class="empty-text">No exam data. Click Generate Report.</p>
+    </div>
+
+    <div *ngIf="academicSubTab === 'assignment'">
+      <div class="form-actions" style="margin-bottom: 16px;">
+        <button class="btn-primary" (click)="loadAssignmentReport()" [disabled]="isLoading">Generate Report</button>
+        <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+        <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+      </div>
+      <div *ngIf="isLoading" class="loading">Loading...</div>
+      <div *ngIf="!isLoading && assignmentReportData" class="report-content">
+        <h4>Overview</h4>
+        <div class="table-container">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Total Assignments</th>
+                <th>Completion %</th>
+                <th>Pending Eval</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ assignmentReportData.overview?.totalAssignments ?? '-' }}</td>
+                <td>{{ formatNum(assignmentReportData.overview?.submissionPercentage) }}%</td>
+                <td>{{ assignmentReportData.overview?.pendingEvaluations ?? '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4 *ngIf="assignmentReportData.assignments?.length" style="margin-top: 16px;">Assignment Details</h4>
+        <div class="table-container" *ngIf="assignmentReportData.assignments?.length">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Total Students</th>
+                <th>Submitted</th>
+                <th>Pending</th>
+                <th>Eval Pending</th>
+                <th>Avg Marks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let a of assignmentReportData.assignments">
+                <td>{{ a.title }}</td>
+                <td>{{ a.totalStudents }}</td>
+                <td>{{ a.submittedCount }}</td>
+                <td>{{ a.pendingCount }}</td>
+                <td>{{ a.evaluationsPending }}</td>
+                <td>{{ formatNum(a.averageMarks) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p *ngIf="!assignmentReportData.assignments?.length" class="empty-text">No assignment details.</p>
+      </div>
+      <p *ngIf="!isLoading && !assignmentReportData" class="empty-text">Click Generate Report.</p>
+    </div>
+  </div>
+
+  <!-- Attendance Reports -->
+  <div *ngIf="reportSubTab === 'attendance'" class="report-panel">
+    <div class="academic-sub-tabs">
+      <button class="sub-tab" [class.active]="attendanceSubTab === 'student'" (click)="attendanceSubTab = 'student'; loadStudentAttendance()">Student Attendance</button>
+      <button class="sub-tab" [class.active]="attendanceSubTab === 'teacher'" (click)="attendanceSubTab = 'teacher'; loadTeacherAttendance()">Teacher Attendance</button>
+    </div>
+
+    <div *ngIf="attendanceSubTab === 'student'">
+      <div class="form-actions" style="margin-bottom: 16px;">
+        <button class="btn-primary" (click)="loadStudentAttendance()" [disabled]="isLoading">Generate Report</button>
+        <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+        <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+      </div>
+      <div *ngIf="isLoading" class="loading">Loading...</div>
+      <div *ngIf="!isLoading && studentAttendanceData" class="report-content">
+        <h4>Summary</h4>
+        <div class="table-container">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Overall %</th>
+                <th>Present</th>
+                <th>Total Entries</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{ formatNum(studentAttendanceData.overview?.attendancePercentage) }}%</td>
+                <td>{{ studentAttendanceData.overview?.presentEntries ?? '-' }}</td>
+                <td>{{ studentAttendanceData.overview?.totalEntries ?? '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <h4 *ngIf="studentAttendanceData.studentReports?.length">Student-wise Attendance</h4>
+        <div class="table-container" *ngIf="studentAttendanceData.studentReports?.length">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Student ID</th>
+                <th>Total</th>
+                <th>Present</th>
+                <th>Percent</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of studentAttendanceData.studentReports">
+                <td>{{ r.studentId }}</td>
+                <td>{{ r.total }}</td>
+                <td>{{ r.present }}</td>
+                <td>{{ formatNum(r.percent) }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p *ngIf="!studentAttendanceData.studentReports?.length" class="empty-text">No student reports.</p>
+      </div>
+      <p *ngIf="!isLoading && !studentAttendanceData" class="empty-text">Click Generate Report.</p>
+    </div>
+
+    <div *ngIf="attendanceSubTab === 'teacher'">
+      <div class="form-actions" style="margin-bottom: 16px;">
+        <button class="btn-primary" (click)="loadTeacherAttendance()" [disabled]="isLoading">Generate Report</button>
+        <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+        <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+      </div>
+      <div *ngIf="isLoading" class="loading">Loading...</div>
+      <div *ngIf="!isLoading && teacherAttendanceData" class="report-content">
+        <h4 *ngIf="teacherAttendanceData.reports?.length">Teacher-wise Attendance</h4>
+        <div class="table-container" *ngIf="teacherAttendanceData.reports?.length">
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Teacher</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Leave</th>
+                <th>Half-Day</th>
+                <th>Total</th>
+                <th>Percent</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of teacherAttendanceData.reports">
+                <td>{{ r.name || getTeacherName(r.teacherId) }}</td>
+                <td>{{ r.present }}</td>
+                <td>{{ r.absent }}</td>
+                <td>{{ r.leave }}</td>
+                <td>{{ r.halfDay }}</td>
+                <td>{{ r.total }}</td>
+                <td>{{ formatNum(r.percentage) }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p *ngIf="!teacherAttendanceData.reports?.length" class="empty-text">No teacher reports.</p>
+      </div>
+      <p *ngIf="!isLoading && !teacherAttendanceData" class="empty-text">Click Generate Report.</p>
+    </div>
+  </div>
+
+  <!-- Financial Reports -->
+  <div *ngIf="reportSubTab === 'financial'" class="report-panel">
+    <div class="form-actions" style="margin-bottom: 16px;">
+      <button class="btn-primary" (click)="loadFinancial()" [disabled]="isLoading">Fee Summary</button>
+      <button class="btn-primary" (click)="loadOverdue()" [disabled]="isLoading">Overdue List</button>
+      <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+      <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+    </div>
+    <div *ngIf="isLoading" class="loading">Loading...</div>
+    <div *ngIf="!isLoading && financialData" class="report-content">
+      <h4>Fee Summary</h4>
+      <div class="table-container">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Collected</th>
+              <th>Pending</th>
+              <th>Overdue Count</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>₹{{ formatNum(financialData.totalCollection) }}</td>
+              <td>₹{{ formatNum(financialData.totalPending) }}</td>
+              <td>{{ financialData.overdueCount ?? 0 }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div *ngIf="!isLoading && overdueData?.items?.length" class="report-content" style="margin-top: 16px;">
+      <h4>Overdue Fee Assignments</h4>
+      <div class="table-container">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Student ID</th>
+              <th>Pending</th>
+              <th>Due Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let o of overdueData.items">
+              <td>{{ o.studentId }}</td>
+              <td>₹{{ formatNum(o.pendingAmount) }}</td>
+              <td>{{ o.dueDate }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p *ngIf="!isLoading && !financialData && !overdueData?.items?.length" class="empty-text">Click Fee Summary or Overdue List.</p>
+  </div>
+
+  <!-- Teacher Activity Reports -->
+  <div *ngIf="reportSubTab === 'teacher-activity'" class="report-panel">
+    <div class="form-actions" style="margin-bottom: 16px;">
+      <button class="btn-primary" (click)="loadTeacherActivity()" [disabled]="isLoading">Generate Report</button>
+      <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+      <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+    </div>
+    <div *ngIf="isLoading" class="loading">Loading...</div>
+    <div *ngIf="!isLoading && teacherActivityData?.length" class="report-content">
+      <div class="table-container">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Teacher</th>
+              <th>Exams Created</th>
+              <th>Assignments Given</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of teacherActivityData">
+              <td>{{ getTeacherName(t.teacherId) }}</td>
+              <td>{{ t.examsCreated }}</td>
+              <td>{{ t.assignmentsGiven }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p *ngIf="!isLoading && (!teacherActivityData?.length)" class="empty-text">No teacher activity data.</p>
+  </div>
+
+  <!-- Student Activity Reports -->
+  <div *ngIf="reportSubTab === 'student-activity'" class="report-panel">
+    <div class="form-actions" style="margin-bottom: 16px;">
+      <button class="btn-primary" (click)="loadStudentActivity()" [disabled]="isLoading">Generate Report</button>
+      <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+      <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+    </div>
+    <div *ngIf="isLoading" class="loading">Loading...</div>
+    <div *ngIf="!isLoading && studentActivityData" class="report-content">
+      <div class="table-container">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Exam Attempts</th>
+              <th>Exam Submissions</th>
+              <th>Assignment Submissions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{ studentActivityData.examAttempts?.totalAttempts ?? '-' }}</td>
+              <td>{{ studentActivityData.examAttempts?.totalSubmissions ?? '-' }}</td>
+              <td>{{ studentActivityData.assignmentSubmissions ?? '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p *ngIf="!isLoading && !studentActivityData" class="empty-text">Click Generate Report.</p>
+  </div>
+
+  <!-- Custom & Filtered Reports -->
+  <div *ngIf="reportSubTab === 'custom'" class="report-panel">
+    <p class="section-subtitle" style="margin-bottom: 16px;">Select report type and apply filters above, then generate.</p>
+    <div class="form-row" style="margin-bottom: 16px;">
+      <div class="form-group">
+        <label>Report Type</label>
+        <select class="form-input" #customType>
+          <option value="academic">Academic (Student Performance)</option>
+          <option value="exam">Exam Analysis</option>
+          <option value="assignment">Assignment</option>
+          <option value="attendance">Attendance</option>
+          <option value="financial">Financial</option>
+          <option value="teacher">Teacher Activity</option>
+          <option value="student">Student Activity</option>
+        </select>
+      </div>
+      <div class="form-actions" style="align-items: flex-end;">
+        <button class="btn-primary" (click)="loadCustomReport(customType.value)" [disabled]="isLoading">Generate</button>
+        <button class="btn-secondary" (click)="exportPdf()">Export PDF</button>
+        <button class="btn-secondary" (click)="exportExcel()">Export Excel</button>
+      </div>
+    </div>
+    <div *ngIf="isLoading" class="loading">Loading...</div>
+    <div *ngIf="!isLoading && customReportData" class="report-content">
+      <pre class="json-preview">{{ customReportData | json }}</pre>
+    </div>
+  </div>
+</div>

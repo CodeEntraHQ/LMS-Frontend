@@ -161,6 +161,10 @@ export class SubjectService {
     return this.http.get(`${this.apiUrl}/subject-teacher-mapping/subject/${subjectId}`);
   }
 
+  getMappingsBySection(sectionId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/subject-teacher-mapping/section/${sectionId}`);
+  }
+
   getMappingsByTeacher(teacherId: number): Observable<any> {
     return this.http.get(`${this.apiUrl}/subject-teacher-mapping/teacher/${teacherId}`);
   }

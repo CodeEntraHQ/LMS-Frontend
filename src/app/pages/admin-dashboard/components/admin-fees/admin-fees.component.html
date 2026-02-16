@@ -1,0 +1,705 @@
+<div class="dashboard-section">
+  <div class="section-header">
+    <div>
+      <h2 class="section-title">💰 Fees Management</h2>
+      <p class="section-subtitle">Manage fee structures, assignments, payments, and financial reports</p>
+    </div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="sub-tabs" style="margin: 24px 0;">
+    <button class="sub-tab" [class.active]="feesSubTab === 'structure'" (click)="feesSubTab = 'structure'">
+      Fee Structure
+    </button>
+    <button class="sub-tab" [class.active]="feesSubTab === 'assignment'" (click)="feesSubTab = 'assignment'">
+      Fee Assignment
+    </button>
+    <button class="sub-tab" [class.active]="feesSubTab === 'payment'" (click)="feesSubTab = 'payment'">
+      Payments
+    </button>
+    <button class="sub-tab" [class.active]="feesSubTab === 'dashboard'" (click)="feesSubTab = 'dashboard'">
+      Financial Dashboard
+    </button>
+    <button class="sub-tab" [class.active]="feesSubTab === 'receipt'" (click)="feesSubTab = 'receipt'">
+      Receipts
+    </button>
+    <button class="sub-tab" [class.active]="feesSubTab === 'policy'" (click)="feesSubTab = 'policy'">
+      Policies
+    </button>
+  </div>
+
+  <!-- Fee Structure Sub-tab -->
+  <div *ngIf="feesSubTab === 'structure'">
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <h3>Fee Structures</h3>
+      <button class="btn-primary" (click)="openCreateFeeStructureModal()">+ Create Fee Structure</button>
+    </div>
+
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <button class="btn-secondary" type="button" (click)="showFeeStructureFilters = !showFeeStructureFilters">
+        {{ showFeeStructureFilters ? 'Hide Filters' : 'Filter' }}
+      </button>
+    </div>
+
+    <div *ngIf="showFeeStructureFilters" class="form-row" style="margin: 0 0 16px;">
+      <div class="form-group">
+        <label>Course</label>
+        <select class="form-input" [(ngModel)]="feeStructureFilters.courseId" (change)="onFeeStructureCourseChange()">
+          <option value="">All</option>
+          <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <select class="form-input" [(ngModel)]="feeStructureFilters.classId" (change)="onFeeStructureClassChange()">
+          <option value="">All</option>
+          <option *ngFor="let classItem of feeStructureFilterClasses" [value]="classItem.id">{{ classItem.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Section</label>
+        <select class="form-input" [(ngModel)]="feeStructureFilters.sectionId">
+          <option value="">All</option>
+          <option *ngFor="let section of feeStructureFilterSections" [value]="section.id">{{ section.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fee Type</label>
+        <select class="form-input" [(ngModel)]="feeStructureFilters.feeType">
+          <option value="">All</option>
+          <option value="TUITION">Tuition</option>
+          <option value="EXAM">Exam</option>
+          <option value="LAB">Lab</option>
+          <option value="LIBRARY">Library</option>
+          <option value="ADMISSION">Admission</option>
+          <option value="OTHER">Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input" [(ngModel)]="feeStructureFilters.status">
+          <option value="">All</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="archived">Archived</option>
+        </select>
+      </div>
+      <div class="form-actions" style="margin-top: 24px;">
+        <button class="btn-primary" (click)="loadFeeStructures()">Apply Filters</button>
+        <button class="btn-secondary" (click)="resetFeeStructureFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoadingFeeStructures" class="loading">Loading fee structures...</div>
+    <div *ngIf="!isLoadingFeeStructures && feeStructures.length === 0" class="empty-state">
+      <p>No fee structures found. Create one to get started.</p>
+    </div>
+    <div *ngIf="!isLoadingFeeStructures && feeStructures.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Name</span>
+        <span>Course/Class</span>
+        <span>Fee Type</span>
+        <span>Amount</span>
+        <span>Due Date</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let structure of feeStructures">
+        <span>{{ structure.feeName || 'N/A' }}</span>
+        <span>{{ getCourseName(structure.courseId) || getClassName(structure.classId) || 'All' }}</span>
+        <span>{{ structure.feeType || 'N/A' }}</span>
+        <span>₹{{ (structure.amount || 0) | number:'1.2-2' }}</span>
+        <span>{{ formatDate(structure.dueDate) || 'N/A' }}</span>
+        <span>
+          <span class="status-badge" 
+                [class.status-active]="structure.status === 'active'"
+                [class.status-inactive]="structure.status === 'inactive'">
+            {{ structure.status || 'active' }}
+          </span>
+        </span>
+        <span class="notice-actions">
+          <button class="btn-view" (click)="viewFeeStructure(structure)">View</button>
+          <button class="btn-edit" (click)="editFeeStructure(structure)">Edit</button>
+          <button class="btn-delete" (click)="deleteFeeStructure(structure)">Delete</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fee Assignment Sub-tab -->
+  <div *ngIf="feesSubTab === 'assignment'">
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <h3>Fee Assignments</h3>
+      <button class="btn-primary" (click)="openCreateFeeAssignmentModal()">+ Assign Fee</button>
+    </div>
+
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <button class="btn-secondary" type="button" (click)="showFeeAssignmentFilters = !showFeeAssignmentFilters">
+        {{ showFeeAssignmentFilters ? 'Hide Filters' : 'Filter' }}
+      </button>
+    </div>
+
+    <div *ngIf="showFeeAssignmentFilters" class="form-row" style="margin: 0 0 16px;">
+      <div class="form-group">
+        <label>Student</label>
+        <input type="text" class="form-input" [(ngModel)]="feeAssignmentFilters.studentName" placeholder="Search by name/roll">
+      </div>
+      <div class="form-group">
+        <label>Course</label>
+        <select class="form-input" [(ngModel)]="feeAssignmentFilters.courseId" (change)="onFeeAssignmentCourseChange()">
+          <option value="">All</option>
+          <option *ngFor="let course of courses" [value]="course.id">{{ course.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Class</label>
+        <select class="form-input" [(ngModel)]="feeAssignmentFilters.classId" (change)="onFeeAssignmentClassChange()">
+          <option value="">All</option>
+          <option *ngFor="let classItem of feeAssignmentFilterClasses" [value]="classItem.id">{{ classItem.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Section</label>
+        <select class="form-input" [(ngModel)]="feeAssignmentFilters.sectionId">
+          <option value="">All</option>
+          <option *ngFor="let section of feeAssignmentFilterSections" [value]="section.id">{{ section.name }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input" [(ngModel)]="feeAssignmentFilters.status">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="partial">Partial</option>
+          <option value="paid">Paid</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+      <div class="form-actions" style="margin-top: 24px;">
+        <button class="btn-primary" (click)="loadFeeAssignments()">Apply Filters</button>
+        <button class="btn-secondary" (click)="resetFeeAssignmentFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoadingFeeAssignments" class="loading">Loading fee assignments...</div>
+    <div *ngIf="!isLoadingFeeAssignments && feeAssignments.length === 0" class="empty-state">
+      <p>No fee assignments found.</p>
+    </div>
+    <div *ngIf="!isLoadingFeeAssignments && feeAssignments.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Student</span>
+        <span>Fee Structure</span>
+        <span>Total Amount</span>
+        <span>Paid</span>
+        <span>Pending</span>
+        <span>Due Date</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let assignment of feeAssignments">
+        <span>{{ getStudentName(assignment.studentId) || 'N/A' }}</span>
+        <span>{{ getFeeStructureName(assignment.feeStructureId) || 'N/A' }}</span>
+        <span>₹{{ (assignment.finalAmount || assignment.totalAmount || 0) | number:'1.2-2' }}</span>
+        <span>₹{{ (assignment.paidAmount || 0) | number:'1.2-2' }}</span>
+        <span>₹{{ (assignment.pendingAmount || 0) | number:'1.2-2' }}</span>
+        <span>{{ formatDate(assignment.dueDate) || 'N/A' }}</span>
+        <span>
+          <span class="status-badge" 
+                [class.status-active]="assignment.status === 'paid'"
+                [class.status-inactive]="assignment.status === 'pending' || assignment.status === 'overdue'">
+            {{ assignment.status || 'pending' }}
+          </span>
+        </span>
+        <span class="notice-actions">
+          <button class="btn-view" (click)="viewFeeAssignment(assignment)">View</button>
+          <button class="btn-edit" (click)="editFeeAssignment(assignment)">Edit</button>
+          <button class="btn-delete" (click)="deleteFeeAssignment(assignment)">Delete</button>
+          <button class="btn-primary" (click)="recordPaymentForAssignment(assignment)">Record Payment</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payments Sub-tab -->
+  <div *ngIf="feesSubTab === 'payment'">
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <h3>Payment Records</h3>
+      <button class="btn-primary" (click)="openCreatePaymentModal()">+ Record Payment</button>
+    </div>
+
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <button class="btn-secondary" type="button" (click)="showFeePaymentFilters = !showFeePaymentFilters">
+        {{ showFeePaymentFilters ? 'Hide Filters' : 'Filter' }}
+      </button>
+    </div>
+
+    <div *ngIf="showFeePaymentFilters" class="form-row" style="margin: 0 0 16px;">
+      <div class="form-group">
+        <label>Student</label>
+        <input type="text" class="form-input" [(ngModel)]="feePaymentFilters.studentName" placeholder="Search by name/roll">
+      </div>
+      <div class="form-group">
+        <label>Payment Mode</label>
+        <select class="form-input" [(ngModel)]="feePaymentFilters.paymentMode">
+          <option value="">All</option>
+          <option value="CASH">Cash</option>
+          <option value="UPI">UPI</option>
+          <option value="CARD">Card</option>
+          <option value="ONLINE_GATEWAY">Online Gateway</option>
+          <option value="CHEQUE">Cheque</option>
+          <option value="BANK_TRANSFER">Bank Transfer</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input" [(ngModel)]="feePaymentFilters.status">
+          <option value="">All</option>
+          <option value="completed">Completed</option>
+          <option value="pending">Pending</option>
+          <option value="failed">Failed</option>
+          <option value="refunded">Refunded</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="date" class="form-input" [(ngModel)]="feePaymentFilters.fromDate">
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="date" class="form-input" [(ngModel)]="feePaymentFilters.toDate">
+      </div>
+      <div class="form-actions" style="margin-top: 24px;">
+        <button class="btn-primary" (click)="loadFeePayments()">Apply Filters</button>
+        <button class="btn-secondary" (click)="resetFeePaymentFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoadingFeePayments" class="loading">Loading payments...</div>
+    <div *ngIf="!isLoadingFeePayments && feePayments.length === 0" class="empty-state">
+      <p>No payment records found.</p>
+    </div>
+    <div *ngIf="!isLoadingFeePayments && feePayments.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Student</span>
+        <span>Amount</span>
+        <span>Payment Date</span>
+        <span>Payment Mode</span>
+        <span>Transaction ID</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let payment of feePayments">
+        <span>{{ getStudentName(payment.studentId) || 'N/A' }}</span>
+        <span>₹{{ (payment.amount || 0) | number:'1.2-2' }}</span>
+        <span>{{ formatDate(payment.paymentDate) || 'N/A' }}</span>
+        <span>{{ payment.paymentMode || 'N/A' }}</span>
+        <span>{{ payment.transactionId || payment.referenceNumber || 'N/A' }}</span>
+        <span>
+          <span class="status-badge" 
+                [class.status-active]="payment.status === 'completed'"
+                [class.status-inactive]="payment.status !== 'completed'">
+            {{ payment.status || 'completed' }}
+          </span>
+        </span>
+        <span class="notice-actions">
+          <button class="btn-view" (click)="viewFeePayment(payment)">View</button>
+          <button class="btn-edit" (click)="editFeePayment(payment)">Edit</button>
+          <button class="btn-secondary" (click)="downloadReceiptForPayment(payment)">Receipt</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Financial Dashboard Sub-tab -->
+  <div *ngIf="feesSubTab === 'dashboard'">
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <h3>Financial Dashboard</h3>
+      <div style="display: flex; gap: 12px;">
+        <input type="date" class="form-input" [(ngModel)]="financialDashboardFilters.fromDate" placeholder="From Date" style="width: 180px;">
+        <input type="date" class="form-input" [(ngModel)]="financialDashboardFilters.toDate" placeholder="To Date" style="width: 180px;">
+        <button class="btn-primary" (click)="loadFinancialDashboard()">Load Dashboard</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoadingFinancialDashboard" class="loading">Loading financial dashboard...</div>
+    <div *ngIf="!isLoadingFinancialDashboard && financialDashboard" class="overview-grid">
+      <div class="stat-card">
+        <div class="stat-label">Total Collection</div>
+        <div class="stat-value">₹{{ (financialDashboard.totalCollection || 0) | number:'1.2-2' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Pending</div>
+        <div class="stat-value">₹{{ (financialDashboard.totalPending || 0) | number:'1.2-2' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Fine</div>
+        <div class="stat-value">₹{{ (financialDashboard.totalFine || 0) | number:'1.2-2' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Students</div>
+        <div class="stat-value">{{ financialDashboard.totalStudents || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Paid Students</div>
+        <div class="stat-value">{{ financialDashboard.paidStudents || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Students</div>
+        <div class="stat-value">{{ financialDashboard.pendingStudents || 0 }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Overdue Count</div>
+        <div class="stat-value">{{ financialDashboard.overdueCount || 0 }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipts Sub-tab -->
+  <div *ngIf="feesSubTab === 'receipt'">
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <h3>Receipts</h3>
+    </div>
+
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <button class="btn-secondary" type="button" (click)="showReceiptFilters = !showReceiptFilters">
+        {{ showReceiptFilters ? 'Hide Filters' : 'Filter' }}
+      </button>
+    </div>
+
+    <div *ngIf="showReceiptFilters" class="form-row" style="margin: 0 0 16px;">
+      <div class="form-group">
+        <label>Student</label>
+        <input type="text" class="form-input" [(ngModel)]="receiptFilters.studentName" placeholder="Search by name/roll">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select class="form-input" [(ngModel)]="receiptFilters.status">
+          <option value="">All</option>
+          <option value="generated">Generated</option>
+          <option value="sent">Sent</option>
+          <option value="downloaded">Downloaded</option>
+        </select>
+      </div>
+      <div class="form-actions" style="margin-top: 24px;">
+        <button class="btn-primary" (click)="loadReceipts()">Apply Filters</button>
+        <button class="btn-secondary" (click)="resetReceiptFilters()">Reset</button>
+      </div>
+    </div>
+
+    <div *ngIf="isLoadingReceipts" class="loading">Loading receipts...</div>
+    <div *ngIf="!isLoadingReceipts && receipts.length === 0" class="empty-state">
+      <p>No receipts found.</p>
+    </div>
+    <div *ngIf="!isLoadingReceipts && receipts.length > 0" class="attendance-summary-table">
+      <div class="summary-table-header">
+        <span>Receipt Number</span>
+        <span>Student</span>
+        <span>Receipt Date</span>
+        <span>Amount</span>
+        <span>Status</span>
+        <span>Actions</span>
+      </div>
+      <div class="summary-table-row" *ngFor="let receipt of receipts">
+        <span>{{ receipt.receiptNumber || 'N/A' }}</span>
+        <span>{{ getStudentName(receipt.studentId) || 'N/A' }}</span>
+        <span>{{ formatDate(receipt.receiptDate) || 'N/A' }}</span>
+        <span>₹{{ getReceiptAmount(receipt) | number:'1.2-2' }}</span>
+        <span>
+          <span class="status-badge" 
+                [class.status-active]="receipt.status === 'sent' || receipt.status === 'downloaded'"
+                [class.status-inactive]="receipt.status === 'generated'">
+            {{ receipt.status || 'generated' }}
+          </span>
+        </span>
+        <span class="notice-actions">
+          <button class="btn-view" (click)="viewReceipt(receipt)">View</button>
+          <button class="btn-secondary" (click)="downloadReceipt(receipt)">Download</button>
+          <button class="btn-edit" (click)="sendReceipt(receipt)">Send</button>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Policies Sub-tab -->
+  <div *ngIf="feesSubTab === 'policy'">
+    <div class="form-header" style="margin: 16px 0 12px;">
+      <h3>Fee Policies & Rules</h3>
+      <button class="btn-primary" (click)="openEditFeePolicyModal()">Edit Policy</button>
+    </div>
+
+    <div *ngIf="isLoadingFeePolicy" class="loading">Loading fee policy...</div>
+    <div *ngIf="!isLoadingFeePolicy && feePolicy" class="settings-card" style="max-width: 800px;">
+      <div class="card-header">
+        <h3 class="card-title">Current Fee Policy</h3>
+      </div>
+      <div class="card-body">
+        <div class="form-group">
+          <label>Late Fine Type</label>
+          <p>{{ feePolicy.lateFineType || 'PERCENTAGE' }}</p>
+        </div>
+        <div class="form-group">
+          <label>Late Fine Percentage</label>
+          <p>{{ feePolicy.lateFinePercentage || 0 }}%</p>
+        </div>
+        <div class="form-group">
+          <label>Late Fine Fixed Amount</label>
+          <p>₹{{ (feePolicy.lateFineFixedAmount || 0) | number:'1.2-2' }}</p>
+        </div>
+        <div class="form-group">
+          <label>Grace Period Days</label>
+          <p>{{ feePolicy.lateFineGracePeriodDays || 0 }} days</p>
+        </div>
+        <div class="form-group">
+          <label>Installment Eligibility</label>
+          <p>{{ feePolicy.installmentEligibilityPercentage !== undefined && feePolicy.installmentEligibilityPercentage > 0 ? 'Yes (' + feePolicy.installmentEligibilityPercentage + '%)' : 'No' }}</p>
+        </div>
+        <div class="form-group">
+          <label>Auto Assign Fees on Admission</label>
+          <p>{{ feePolicy.autoAssignFees ? 'Yes' : 'No' }}</p>
+        </div>
+        <div class="form-group">
+          <label>Financial Year Locked</label>
+          <p>{{ feePolicy.financialYearLocked ? 'Yes' : 'No' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Fee Policy Edit Modal -->
+<div class="modal-overlay" *ngIf="showFeePolicyModal" (click)="closeFeePolicyModal()">
+  <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Edit Fee Policy</h2>
+      <button class="close-btn" (click)="closeFeePolicyModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Late Fine Type</label>
+          <select class="form-input" [(ngModel)]="feePolicyForm.lateFineType">
+            <option value="PERCENTAGE">Percentage</option>
+            <option value="FIXED">Fixed Amount</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Late Fine Percentage (%)</label>
+          <input type="number" class="form-input" [(ngModel)]="feePolicyForm.lateFinePercentage" placeholder="0" min="0" max="100" step="0.5" *ngIf="(feePolicyForm.lateFineType || 'PERCENTAGE') === 'PERCENTAGE'" />
+          <input type="text" class="form-input" value="N/A" disabled *ngIf="(feePolicyForm.lateFineType || 'PERCENTAGE') !== 'PERCENTAGE'" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Late Fine Fixed Amount (₹)</label>
+          <input type="number" class="form-input" [(ngModel)]="feePolicyForm.lateFineFixedAmount" placeholder="0.00" min="0" step="0.01" *ngIf="feePolicyForm.lateFineType === 'FIXED'" />
+          <input type="text" class="form-input" value="N/A" disabled *ngIf="(feePolicyForm.lateFineType || 'PERCENTAGE') !== 'FIXED'" />
+        </div>
+        <div class="form-group">
+          <label>Grace Period Days</label>
+          <input type="number" class="form-input" [(ngModel)]="feePolicyForm.lateFineGracePeriodDays" placeholder="0" min="0" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Installment Eligibility %</label>
+          <input type="number" class="form-input" [(ngModel)]="feePolicyForm.installmentEligibilityPercentage" placeholder="0" min="0" max="100" step="1" />
+          <small style="color: #888;">Min % of fee paid to be eligible for installments (0 = No)</small>
+        </div>
+        <div class="form-group">
+          <label>Auto Assign Fees on Admission</label>
+          <select class="form-input" [(ngModel)]="feePolicyForm.autoAssignFees">
+            <option [value]="true">Yes</option>
+            <option [value]="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Financial Year Locked</label>
+          <select class="form-input" [(ngModel)]="feePolicyForm.financialYearLocked">
+            <option [value]="false">No</option>
+            <option [value]="true">Yes</option>
+          </select>
+        </div>
+        <div class="form-group" *ngIf="feePolicyForm.financialYearLocked">
+          <label>Locked Financial Year</label>
+          <input type="text" class="form-input" [(ngModel)]="feePolicyForm.lockedFinancialYear" placeholder="e.g. 2023-2024" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeFeePolicyModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveFeePolicy()">Save Policy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Fee Structure Modal -->
+<app-fee-structure-modal
+  *ngIf="showFeeStructureModal"
+  [form]="feeStructureForm"
+  [isEditing]="isEditingFeeStructure && !isViewingFeeStructure"
+  [isViewing]="isViewingFeeStructure"
+  [courses]="courses"
+  [classes]="feeStructureFilterClasses"
+  [sections]="feeStructureFilterSections"
+  (close)="closeFeeStructureModal()"
+  (save)="saveFeeStructure()"
+  (courseChange)="onFeeStructureCourseChange()"
+  (classChange)="onFeeStructureClassChange()"
+></app-fee-structure-modal>
+
+<!-- Fee Assignment Modal -->
+<app-fee-assignment-modal
+  *ngIf="showFeeAssignmentModal"
+  [form]="feeAssignmentForm"
+  [isEditing]="isEditingFeeAssignment && !isViewingFeeAssignment"
+  [isViewing]="isViewingFeeAssignment"
+  [students]="students"
+  [feeStructures]="feeStructures"
+  (close)="closeFeeAssignmentModal()"
+  (save)="saveFeeAssignment()"
+  (studentChange)="onFeeAssignmentStudentChange()"
+  (structureChange)="onFeeAssignmentStructureChange()"
+  (calculateFinalAmount)="calculateFinalAmount()"
+></app-fee-assignment-modal>
+
+<!-- Fee Payment Modal -->
+<div class="modal-overlay" *ngIf="showFeePaymentModal" (click)="closeFeePaymentModal()">
+  <div class="modal-content student-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h2>{{ isViewingFeePayment ? 'View Payment' : (isEditingFeePayment ? 'Edit Payment' : 'Record Payment') }}</h2>
+      <button class="close-btn" (click)="closeFeePaymentModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Student *</label>
+          <select class="form-input" [(ngModel)]="feePaymentForm.studentId" (change)="onPaymentStudentChange()" [disabled]="isViewingFeePayment || isEditingFeePayment">
+            <option [value]="undefined">Select a student</option>
+            <option *ngFor="let student of students" [value]="student.id">
+              {{ student.firstName }} {{ student.lastName }} ({{ student.rollNumber || 'N/A' }})
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fee Assignment *</label>
+          <select class="form-input" [(ngModel)]="feePaymentForm.feeAssignmentId" (change)="onPaymentAssignmentChange()" [disabled]="isViewingFeePayment || isEditingFeePayment || !feePaymentForm.studentId">
+            <option [value]="undefined">Select a fee assignment</option>
+            <ng-container *ngFor="let assignment of feeAssignmentsForPayment">
+              <option *ngIf="!feePaymentForm.studentId || assignment.studentId == feePaymentForm.studentId"
+                      [value]="assignment.id">
+                {{ getFeeStructureName(assignment.feeStructureId) }} - ₹{{ (assignment.pendingAmount || 0) | number:'1.2-2' }} pending
+              </option>
+            </ng-container>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Payment Amount *</label>
+          <input type="number" class="form-input" [(ngModel)]="feePaymentForm.amount" placeholder="0.00" step="0.01" min="0" [readonly]="isViewingFeePayment || isEditingFeePayment" />
+        </div>
+        <div class="form-group">
+          <label>Payment Date *</label>
+          <input type="date" class="form-input" [(ngModel)]="feePaymentForm.paymentDate" [disabled]="isViewingFeePayment" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Payment Mode *</label>
+          <select class="form-input" [(ngModel)]="feePaymentForm.paymentMode" [disabled]="isViewingFeePayment">
+            <option value="CASH">Cash</option>
+            <option value="UPI">UPI</option>
+            <option value="CARD">Card</option>
+            <option value="ONLINE_GATEWAY">Online Gateway</option>
+            <option value="CHEQUE">Cheque</option>
+            <option value="BANK_TRANSFER">Bank Transfer</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select class="form-input" [(ngModel)]="feePaymentForm.status" [disabled]="isViewingFeePayment">
+            <option value="completed">Completed</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="refunded">Refunded</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Transaction ID</label>
+          <input type="text" class="form-input" [(ngModel)]="feePaymentForm.transactionId" placeholder="Optional" [readonly]="isViewingFeePayment" />
+        </div>
+        <div class="form-group">
+          <label>Reference Number</label>
+          <input type="text" class="form-input" [(ngModel)]="feePaymentForm.referenceNumber" placeholder="Optional" [readonly]="isViewingFeePayment" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Fine Amount</label>
+          <input type="number" class="form-input" [(ngModel)]="feePaymentForm.fineAmount" placeholder="0.00" step="0.01" min="0" [readonly]="isViewingFeePayment" />
+        </div>
+        <div class="form-group">
+          <label>Fine Reason</label>
+          <input type="text" class="form-input" [(ngModel)]="feePaymentForm.fineReason" placeholder="Optional" [readonly]="isViewingFeePayment" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Remarks</label>
+        <textarea class="form-input" rows="3" [(ngModel)]="feePaymentForm.remarks" placeholder="Additional remarks" [readonly]="isViewingFeePayment"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer" *ngIf="!isViewingFeePayment">
+      <button class="btn-secondary" (click)="closeFeePaymentModal()">Cancel</button>
+      <button class="btn-primary" (click)="saveFeePayment()">{{ isEditingFeePayment ? 'Update' : 'Record Payment' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt View Modal -->
+<div class="modal-overlay" *ngIf="showReceiptViewModal" (click)="closeReceiptViewModal()">
+  <div class="modal-content student-modal" (click)="$event.stopPropagation()" *ngIf="selectedReceipt">
+    <div class="modal-header">
+      <h2>Receipt Details</h2>
+      <button class="close-btn" (click)="closeReceiptViewModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Receipt Number</label>
+          <p class="form-value">{{ selectedReceipt.receiptNumber || 'N/A' }}</p>
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <p class="form-value"><span class="status-badge" [class.status-active]="selectedReceipt.status === 'sent' || selectedReceipt.status === 'downloaded'" [class.status-inactive]="selectedReceipt.status === 'generated'">{{ selectedReceipt.status || 'generated' }}</span></p>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Student</label>
+          <p class="form-value">{{ getStudentName(selectedReceipt.studentId) || 'N/A' }}</p>
+        </div>
+        <div class="form-group">
+          <label>Receipt Date</label>
+          <p class="form-value">{{ formatDate(selectedReceipt.receiptDate) || 'N/A' }}</p>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Amount</label>
+        <p class="form-value" style="font-size: 1.25rem; font-weight: 600; color: #059669;">₹{{ getReceiptAmount(selectedReceipt) | number:'1.2-2' }}</p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" (click)="closeReceiptViewModal()">Close</button>
+      <button class="btn-primary" (click)="downloadReceipt(selectedReceipt); closeReceiptViewModal()">Download</button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,163 @@
+<div class="exam-fullscreen" [class.fullscreen-active]="step === 'exam'">
+  <!-- Header with Timer (during exam) -->
+  <header class="exam-header" *ngIf="step === 'exam'">
+    <div class="exam-header-left">
+      <span class="exam-name">{{ exam?.name }}</span>
+      <span class="exam-meta">{{ subjectName }} • {{ questionCount }} questions</span>
+    </div>
+    <div class="exam-timer" [class.timer-warning]="timerSeconds <= 300">
+      <span class="timer-icon">⏱</span>
+      {{ timerDisplay }}
+    </div>
+  </header>
+
+  <!-- Instructions -->
+  <div class="exam-content" *ngIf="step === 'instructions'">
+    <div class="instructions-card" *ngIf="!isLoading && !errorMessage">
+      <h1 class="instructions-title">{{ exam?.name || 'Exam' }}</h1>
+      <p class="instructions-subject">{{ subjectName }}</p>
+      <div class="instructions-grid">
+        <div class="info-item">
+          <span class="info-label">Total Marks</span>
+          <span class="info-value">{{ totalMarks }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Duration</span>
+          <span class="info-value">{{ durationMinutes }} minutes</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Questions</span>
+          <span class="info-value">{{ questionCount }}</span>
+        </div>
+        <div class="info-item" *ngIf="negativeMarking">
+          <span class="info-label">Negative Marking</span>
+          <span class="info-value">{{ negativeMarksPerQuestion }} per wrong</span>
+        </div>
+      </div>
+      <div class="rules-section">
+        <h3>Rules</h3>
+        <ul>
+          <li>Do not refresh the page during the exam</li>
+          <li>No multiple attempts allowed (unless specified)</li>
+          <li>Exam will auto-submit when time ends</li>
+          <li>Use "Mark for Review" to revisit questions later</li>
+        </ul>
+      </div>
+      <div class="instructions-actions">
+        <button class="btn-back" (click)="goBackToExams()">← Back</button>
+        <button class="btn-start" (click)="startExam()" [disabled]="isLoading || questionCount === 0">
+          {{ isLoading ? 'Starting...' : (questionCount === 0 ? 'No Questions Added' : 'Start Exam') }}
+        </button>
+      </div>
+      <p class="no-questions-msg" *ngIf="questionCount === 0">
+        No questions have been added to this exam yet. Please contact your administrator or teacher to add questions.
+      </p>
+    </div>
+    <div *ngIf="isLoading" class="loading-state">Loading exam...</div>
+    <div *ngIf="errorMessage" class="error-state">
+      <p>{{ errorMessage }}</p>
+      <button class="btn-back" (click)="goBackToExams()">Back to Exams</button>
+    </div>
+  </div>
+
+  <!-- Exam Interface -->
+  <div class="exam-content exam-interface" *ngIf="step === 'exam'">
+    <div class="exam-layout">
+      <div class="questions-panel">
+        <div class="question-card no-questions-card" *ngIf="questionCount === 0">
+          <p>No questions have been added to this exam yet. Please contact your administrator.</p>
+          <button class="btn-back" (click)="goBackToExams()">Back to Exams</button>
+        </div>
+        <div class="question-card" *ngIf="currentQuestion && questionCount > 0">
+          <div class="question-number">Question {{ currentIndex + 1 }} of {{ questionCount }}</div>
+          <div class="question-text">{{ currentQuestion.questionText }}</div>
+          <div class="question-actions">
+            <button class="btn-mark" (click)="toggleMarkForReview()" [class.marked]="isMarkedForReview(currentQuestion.id)">
+              {{ isMarkedForReview(currentQuestion.id) ? '✓ Marked' : 'Mark for Review' }}
+            </button>
+          </div>
+          <!-- MCQ Single -->
+          <div class="options-list" *ngIf="currentQuestion.questionType === 'MCQ_SINGLE'">
+            <label class="option-item" *ngFor="let opt of currentQuestion.options">
+              <input type="radio" [name]="'q' + currentQuestion.id" [value]="opt.id"
+                     [checked]="isOptionSelected(currentQuestion.id, opt.id)"
+                     (change)="setMcqAnswer(currentQuestion.id, opt.id, false)">
+              <span>{{ opt.optionText }}</span>
+            </label>
+          </div>
+          <!-- MCQ Multiple -->
+          <div class="options-list" *ngIf="currentQuestion.questionType === 'MCQ_MULTIPLE'">
+            <label class="option-item" *ngFor="let opt of currentQuestion.options">
+              <input type="checkbox" [value]="opt.id"
+                     [checked]="isOptionSelected(currentQuestion.id, opt.id)"
+                     (change)="setMcqAnswer(currentQuestion.id, opt.id, true)">
+              <span>{{ opt.optionText }}</span>
+            </label>
+          </div>
+          <!-- Descriptive / Subjective -->
+          <div class="subjective-answer" *ngIf="currentQuestion.questionType === 'DESCRIPTIVE' || currentQuestion.questionType === 'ONE_WORD'">
+            <textarea rows="6" [value]="getAnswerText(currentQuestion.id)"
+                      (input)="setTextAnswer(currentQuestion.id, $any($event.target).value)"
+                      placeholder="Type your answer here..."></textarea>
+          </div>
+        </div>
+        <div class="nav-buttons">
+          <button class="btn-nav" (click)="prevQuestion()" [disabled]="currentIndex === 0">← Previous</button>
+          <button class="btn-nav" (click)="nextQuestion()" [disabled]="currentIndex === questionCount - 1">Next →</button>
+        </div>
+        <div class="submit-row">
+          <button class="btn-submit" (click)="confirmSubmit()" [disabled]="isSubmitting">
+            {{ isSubmitting ? 'Submitting...' : 'Submit Exam' }}
+          </button>
+        </div>
+      </div>
+      <aside class="palette-panel">
+        <h4>Question Palette</h4>
+        <div class="palette-grid">
+          <button *ngFor="let q of questions; let i = index" class="palette-btn"
+                  [class.answered]="answers.get(q.id)?.selectedOptionIds || answers.get(q.id)?.answerText"
+                  [class.current]="i === currentIndex"
+                  [class.marked]="isMarkedForReview(q.id)"
+                  (click)="goToQuestion(i)">
+            {{ i + 1 }}
+          </button>
+        </div>
+        <div class="palette-legend">
+          <span class="leg answered">Answered</span>
+          <span class="leg marked">Marked</span>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Submitted / Result -->
+  <div class="exam-content" *ngIf="step === 'submitted'">
+    <div class="submitted-card">
+      <div class="success-icon">✓</div>
+      <h2>{{ isViewingResult ? 'Your Exam Result' : 'Exam Submitted Successfully' }}</h2>
+      <p>Your responses have been saved.</p>
+      <div *ngIf="resultData?.resultPublished" class="result-box">
+        <div class="result-row">
+          <span>Marks Obtained:</span>
+          <strong>{{ resultData.obtainedMarks }}/{{ resultData.totalMarks }}</strong>
+        </div>
+        <div class="result-row" *ngIf="resultData.percentage != null">
+          <span>Percentage:</span>
+          <strong>{{ resultData.percentage }}%</strong>
+        </div>
+        <div class="result-row" *ngIf="resultData.grade">
+          <span>Grade:</span>
+          <strong>{{ resultData.grade }}</strong>
+        </div>
+        <div class="result-row" *ngIf="resultData.passed != null">
+          <span>Status:</span>
+          <strong [class.pass]="resultData.passed" [class.fail]="!resultData.passed">
+            {{ resultData.passed ? 'Passed' : 'Failed' }}
+          </strong>
+        </div>
+      </div>
+      <p *ngIf="!resultData?.resultPublished" class="result-pending">Results will be available after evaluation and publication by the teacher.</p>
+      <button class="btn-back" (click)="goBackToExams()">Back to Exams</button>
+    </div>
+  </div>
+</div>

@@ -96,4 +96,8 @@ export class StudentService {
   getStudentsBySection(sectionId: number): Observable<{ ok: boolean; students?: Student[]; count?: number; message?: string }> {
     return this.http.get<{ ok: boolean; students?: Student[]; count?: number; message?: string }>(`${this.apiUrl}/section/${sectionId}`);
   }
+
+  getStudentsByClass(classId: number): Observable<{ ok: boolean; students?: Student[]; count?: number; message?: string }> {
+    return this.http.get<{ ok: boolean; students?: Student[]; count?: number; message?: string }>(`${this.apiUrl}/class/${classId}`);
+  }
 }
